@@ -1,0 +1,232 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.98 0.01 270); /* #f9f8ff - soft lavender */
+  --foreground: oklch(0.15 0.05 270); /* #1a102b - deep indigo */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.05 270);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.05 270);
+  --primary: oklch(0.55 0.25 285); /* #8a3ffc - primary purple */
+  --primary-foreground: oklch(0.95 0.02 270);
+  --secondary: oklch(0.65 0.25 350); /* #ff4d6d - accent red/magenta */
+  --secondary-foreground: oklch(0.95 0.02 270);
+  --muted: oklch(0.96 0.01 270);
+  --muted-foreground: oklch(0.45 0.02 270);
+  --accent: oklch(0.6 0.2 285); /* #a259ff - glow effect color */
+  --accent-foreground: oklch(0.95 0.02 270);
+  --destructive: oklch(0.65 0.25 350);
+  --destructive-foreground: oklch(0.95 0.02 270);
+  --border: oklch(0.9 0.01 270);
+  --input: oklch(0.96 0.01 270);
+  --ring: oklch(0.6 0.2 285);
+  --chart-1: oklch(0.55 0.25 285);
+  --chart-2: oklch(0.65 0.25 350);
+  --chart-3: oklch(0.6 0.2 285);
+  --chart-4: oklch(0.45 0.15 270);
+  --chart-5: oklch(0.7 0.1 300);
+  --radius: 1rem; /* Increased for more rounded "bubble" shapes */
+  --sidebar: oklch(0.98 0.01 270);
+  --sidebar-foreground: oklch(0.15 0.05 270);
+  --sidebar-primary: oklch(0.55 0.25 285);
+  --sidebar-primary-foreground: oklch(0.95 0.02 270);
+  --sidebar-accent: oklch(0.96 0.01 270);
+  --sidebar-accent-foreground: oklch(0.15 0.05 270);
+  --sidebar-border: oklch(0.9 0.01 270);
+  --sidebar-ring: oklch(0.6 0.2 285);
+  --glassmorphism-bg: rgba(26, 16, 43, 0.6);
+  --glow-color: #a259ff;
+  --gradient-primary: linear-gradient(135deg, #8a3ffc 0%, #ff4d6d 100%);
+  --gradient-glow: linear-gradient(135deg, #a259ff 0%, #8a3ffc 50%, #ff4d6d 100%);
+}
+
+.dark {
+  --background: oklch(0.08 0.05 270); /* #120c1f - deep indigo */
+  --foreground: oklch(0.88 0.03 270); /* #e0d8ff - light lavender */
+  --card: oklch(0.12 0.05 270);
+  --card-foreground: oklch(0.88 0.03 270);
+  --popover: oklch(0.12 0.05 270);
+  --popover-foreground: oklch(0.88 0.03 270);
+  --primary: oklch(0.55 0.25 285); /* #8a3ffc - primary purple */
+  --primary-foreground: oklch(0.95 0.02 270);
+  --secondary: oklch(0.65 0.25 350); /* #ff4d6d - accent red/magenta */
+  --secondary-foreground: oklch(0.95 0.02 270);
+  --muted: oklch(0.15 0.05 270);
+  --muted-foreground: oklch(0.65 0.03 270);
+  --accent: oklch(0.6 0.2 285); /* #a259ff - glow effect color */
+  --accent-foreground: oklch(0.95 0.02 270);
+  --destructive: oklch(0.65 0.25 350);
+  --destructive-foreground: oklch(0.95 0.02 270);
+  --border: oklch(0.2 0.05 270);
+  --input: oklch(0.15 0.05 270);
+  --ring: oklch(0.6 0.2 285);
+  --chart-1: oklch(0.55 0.25 285);
+  --chart-2: oklch(0.65 0.25 350);
+  --chart-3: oklch(0.6 0.2 285);
+  --chart-4: oklch(0.45 0.15 270);
+  --chart-5: oklch(0.7 0.1 300);
+  --sidebar: oklch(0.1 0.05 270);
+  --sidebar-foreground: oklch(0.88 0.03 270);
+  --sidebar-primary: oklch(0.55 0.25 285);
+  --sidebar-primary-foreground: oklch(0.95 0.02 270);
+  --sidebar-accent: oklch(0.15 0.05 270);
+  --sidebar-accent-foreground: oklch(0.88 0.03 270);
+  --sidebar-border: oklch(0.2 0.05 270);
+  --sidebar-ring: oklch(0.6 0.2 285);
+}
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-poppins);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  .glassmorphism {
+    background: var(--glassmorphism-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .glow-effect {
+    box-shadow: 0 0 20px var(--glow-color);
+  }
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .gradient-border {
+    border-image: var(--gradient-primary) 1;
+  }
+  /* Added scrollbar hiding utility */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Added symmetric wave animations for footer */
+  .wave-animation-1 {
+    animation: wave-flow-1 8s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .wave-animation-2 {
+    animation: wave-flow-2 12s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .wave-animation-3 {
+    animation: wave-flow-3 10s ease-in-out infinite;
+    transform-origin: center;
+  }
+}
+
+/* Added keyframe animations for smooth, symmetric wave motion */
+@keyframes wave-flow-1 {
+  0%,
+  100% {
+    transform: translateX(0) scaleY(1);
+    opacity: 0.6;
+  }
+  25% {
+    transform: translateX(-10px) scaleY(1.1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateX(0) scaleY(0.9);
+    opacity: 0.7;
+  }
+  75% {
+    transform: translateX(10px) scaleY(1.1);
+    opacity: 0.8;
+  }
+}
+
+@keyframes wave-flow-2 {
+  0%,
+  100% {
+    transform: translateX(0) scaleY(1);
+    opacity: 0.5;
+  }
+  33% {
+    transform: translateX(15px) scaleY(1.2);
+    opacity: 0.7;
+  }
+  66% {
+    transform: translateX(-15px) scaleY(0.8);
+    opacity: 0.6;
+  }
+}
+
+@keyframes wave-flow-3 {
+  0%,
+  100% {
+    transform: translateX(0) scaleY(1);
+    opacity: 0.4;
+  }
+  20% {
+    transform: translateX(-8px) scaleY(1.15);
+    opacity: 0.6;
+  }
+  40% {
+    transform: translateX(8px) scaleY(0.85);
+    opacity: 0.5;
+  }
+  60% {
+    transform: translateX(-5px) scaleY(1.05);
+    opacity: 0.65;
+  }
+  80% {
+    transform: translateX(5px) scaleY(0.95);
+    opacity: 0.55;
+  }
+}
