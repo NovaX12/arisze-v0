@@ -15,13 +15,18 @@ import { toast } from "sonner"
 
 interface Booking {
   _id: string
-  venueId: string
-  venueName: string
-  date: string
-  time: string
-  groupSize: number
+  eventId: string
+  eventTitle: string
+  eventCafe: string
+  eventDate: string
+  eventTime: string
+  eventAddress: string
+  userPhone: string
+  university: string
+  hasGuest: boolean
+  guestInfo: any
+  bookedAt: string
   status: string
-  createdAt: string
 }
 
 export function MyEventsSection() {

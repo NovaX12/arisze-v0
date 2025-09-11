@@ -26,8 +26,15 @@ export async function GET(request: NextRequest) {
     // Transform bookings to include event details
     const bookingsWithEventDetails = await Promise.all(
       bookings.map(async (booking) => {
-        const event = await db.collection('events')
-          .findOne({ _id: booking.eventId })
+        let event = null
+        try {
+          // Convert eventId to ObjectId for querying
+          const eventObjectId = new ObjectId(booking.eventId)
+          event = await db.collection('events')
+            .findOne({ _id: eventObjectId })
+        } catch (error) {
+          console.error('Error converting eventId to ObjectId:', error)
+        }
         
         return {
           _id: booking._id.toString(),
