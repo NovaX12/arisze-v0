@@ -16,10 +16,10 @@ export async function PUT(request: Request) {
       )
     }
 
-    const { university, year, major, bio, showcaseBadges } = await request.json()
+    const { name, university, year, major, bio, showcaseBadges } = await request.json()
 
     // Validation
-    if (!university && !year && !major && !bio && !showcaseBadges) {
+    if (!name && !university && !year && !major && !bio && !showcaseBadges) {
       return NextResponse.json(
         { error: 'At least one field must be provided' },
         { status: 400 }
@@ -34,6 +34,7 @@ export async function PUT(request: Request) {
       updatedAt: new Date()
     }
     
+    if (name !== undefined) updateData.name = name
     if (university !== undefined) updateData.university = university
     if (year !== undefined) updateData.year = year
     if (major !== undefined) updateData.major = major
@@ -88,9 +89,18 @@ export async function GET(request: Request) {
     // Connect to database
     const db = await getDatabase()
     
-    // Fetch user profile
+    // Fetch user profile (handle both ObjectId and string formats)
+    let query;
+    try {
+      // Try ObjectId format first (real MongoDB)
+      query = { _id: new ObjectId(session.user.id) };
+    } catch (error) {
+      // Fallback to string format (mock database)
+      query = { _id: session.user.id };
+    }
+    
     const user = await db.collection('users').findOne(
-      { _id: new ObjectId(session.user.id) },
+      query,
       { projection: { password: 0 } } // Exclude password
     )
 

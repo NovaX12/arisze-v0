@@ -27,8 +27,9 @@ export async function POST(request: NextRequest) {
 
   try {
     console.log('Registration attempt for:', { name, email })
+
+    // Connect to database
     const db = await getDatabase()
-    console.log('Database connection successful')
 
     // Check if user already exists
     const existingUser = await db.collection('users').findOne({ email })
@@ -40,8 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash password
-    const saltRounds = 12
-    const hashedPassword = await bcrypt.hash(password, saltRounds)
+    const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create new user with default earned badges
     const newUser = {
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       major: major || '',
       bio: '',
       avatar: '',
-      earnedBadges: ['newbie', 'profile-pro', 'early-bird', 'academic-ally'], // More default badges
+      earnedBadges: ['newbie', 'profile-pro', 'early-bird', 'academic-ally'],
       createdAt: new Date(),
       updatedAt: new Date()
     }
@@ -66,17 +66,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       message: 'User created successfully',
       user: {
-        id: result.insertedId,
+        id: result.insertedId.toString(),
         ...userWithoutPassword
       }
     }, { status: 201 })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Registration error:', error)
-    console.error('Error details:', error.message)
+    if (error instanceof Error) {
+      console.error('Error details:', error.message)
+      return NextResponse.json({ 
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Registration failed'
+      }, { status: 500 })
+    }
     return NextResponse.json({ 
       message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Registration failed'
+      error: 'Registration failed'
     }, { status: 500 })
   }
 }

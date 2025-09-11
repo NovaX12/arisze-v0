@@ -14,17 +14,17 @@ describe('Navigation and Routing', () => {
     cy.get('a[href="/signup"]').should('be.visible')
     
     // Navigate to events page
-    cy.get('a[href="/events"]').click()
+    cy.get('a[href="/events"]').first().click()
     cy.url().should('include', '/events')
     cy.get('h1').should('contain', 'Events')
     
     // Navigate to login page
-    cy.get('a[href="/login"]').click()
+    cy.get('a[href="/login"]').first().click()
     cy.url().should('include', '/login')
     cy.get('h1').should('contain', 'Arisze')
     
     // Navigate to signup page
-    cy.get('a[href="/signup"]').click()
+    cy.get('a[href="/signup"]').first().click()
     cy.url().should('include', '/signup')
     cy.get('h1').should('contain', 'Arisze')
   })
@@ -125,6 +125,12 @@ describe('Navigation and Routing', () => {
     cy.visit('/non-existent-page', { failOnStatusCode: false })
     
     // Should show 404 page or redirect
-    cy.get('body').should('contain', '404').or('contain', 'Not Found')
+    cy.get('body').then(($body) => {
+      if ($body.text().includes('404') || $body.text().includes('Not Found')) {
+        cy.get('body').should('contain', '404')
+      } else {
+        cy.url().should('eq', 'http://localhost:3000/')
+      }
+    })
   })
 })

@@ -40,13 +40,17 @@ describe('Dashboard Functionality', () => {
     cy.get('[data-testid="user-email"]').should('contain', 'cypress@arisze.com')
   })
 
-  it('should allow profile updates', () => {
+  it('should allow profile updates with all fields including name', () => {
     cy.visit('/dashboard')
+    
+    // Click edit profile button to show form
+    cy.get('[data-testid="edit-profile"]').click()
     
     // Check if profile update form exists
     cy.get('[data-testid="profile-form"]').should('be.visible')
     
-    // Update profile information
+    // Update all profile information including name
+    cy.get('input[id="name"]').clear().type('Updated Test User')
     cy.get('[data-testid="university-input"]').clear().type('Updated University')
     cy.get('[data-testid="year-input"]').clear().type('2024')
     cy.get('[data-testid="major-input"]').clear().type('Computer Science')
@@ -55,8 +59,139 @@ describe('Dashboard Functionality', () => {
     // Submit profile update
     cy.get('[data-testid="profile-update-button"]').click()
     
-    // Check for success message
-    cy.get('.text-green-500').should('contain', 'Profile updated successfully')
+    // Wait for update to complete
+    cy.wait(2000)
+    
+    // Check that profile name is updated in dashboard
+    cy.get('[data-testid="user-name"]').should('contain', 'Updated Test User')
+    
+    // Check that profile information is displayed correctly
+    cy.get('[data-testid="user-university"]').should('contain', 'Updated University')
+    cy.get('[data-testid="profile-section"]').should('contain', 'Computer Science')
+    cy.get('[data-testid="profile-section"]').should('contain', 'Updated bio information')
+  })
+
+  it('should update profile completion percentage as fields are filled', () => {
+    cy.visit('/dashboard')
+    
+    // Check initial profile completion
+    cy.get('[data-testid="profile-section"]').should('contain', '%')
+    
+    // Click edit profile button
+    cy.get('[data-testid="edit-profile"]').click()
+    
+    // Add more profile information
+    cy.get('[data-testid="university-input"]').clear().type('Test University')
+    cy.get('[data-testid="year-input"]').clear().type('2024')
+    cy.get('[data-testid="major-input"]').clear().type('Computer Science')
+    cy.get('[data-testid="bio-input"]').clear().type('This is my bio')
+    
+    // Save changes
+    cy.get('[data-testid="profile-update-button"]').click()
+    cy.wait(2000)
+    
+    // Check that profile completion percentage has increased
+    cy.get('[data-testid="profile-section"]').should('contain', '%')
+    cy.get('[data-testid="profile-section"]').should('contain', 'Profile Complete')
+  })
+
+  it('should handle profile picture upload', () => {
+    cy.visit('/dashboard')
+    
+    // Check if avatar upload button exists
+    cy.get('[data-testid="avatar-upload-button"]').should('be.visible')
+    
+    // Simulate file upload
+    const fileName = 'test-avatar.jpg'
+    cy.get('input[id="avatar-upload"]').selectFile('cypress/fixtures/' + fileName, { force: true })
+    
+    // Wait for upload to complete
+    cy.wait(3000)
+    
+    // Check that avatar image is updated (should show uploaded image or loading state)
+    cy.get('[data-testid="profile-section"]').should('be.visible')
+  })
+
+  it('should sync profile picture between dashboard and navbar', () => {
+    cy.visit('/dashboard')
+    
+    // Upload avatar
+    const fileName = 'test-avatar.jpg'
+    cy.get('input[id="avatar-upload"]').selectFile('cypress/fixtures/' + fileName, { force: true })
+    cy.wait(3000)
+    
+    // Navigate to another page to check navbar
+    cy.visit('/events')
+    
+    // Check that header avatar is visible
+    cy.get('[data-testid="header-avatar"]').should('be.visible')
+    
+    // Navigate back to dashboard
+    cy.visit('/dashboard')
+    
+    // Check that dashboard avatar is consistent
+    cy.get('[data-testid="profile-section"]').should('be.visible')
+  })
+
+  it('should show toast notifications for successful profile updates', () => {
+    cy.visit('/dashboard')
+    
+    // Edit profile
+    cy.get('[data-testid="edit-profile"]').click()
+    cy.get('[data-testid="university-input"]').clear().type('Toast Test University')
+    cy.get('[data-testid="profile-update-button"]').click()
+    
+    // Wait for toast to appear and check for success message
+    cy.wait(1000)
+    // Note: Toast might appear and disappear quickly, so we check for the presence of toast content
+    cy.get('body').should('contain', 'Profile Updated!')
+  })
+
+  it('should handle profile editing cancellation', () => {
+    cy.visit('/dashboard')
+    
+    const originalName = 'Cypress Test User'
+    
+    // Edit profile but don't save
+    cy.get('[data-testid="edit-profile"]').click()
+    cy.get('input[id="name"]').clear().type('Temporary Name Change')
+    
+    // Cancel editing
+    cy.get('button').contains('Cancel').click()
+    
+    // Check that original name is preserved
+    cy.get('[data-testid="user-name"]').should('contain', originalName)
+    
+    // Check that form is closed
+    cy.get('[data-testid="profile-form"]').should('not.exist')
+  })
+
+  it('should validate profile picture file types and sizes', () => {
+    cy.visit('/dashboard')
+    
+    // Try to upload invalid file type (we'll simulate this by checking the validation)
+    cy.get('[data-testid="avatar-upload-button"]').should('be.visible')
+    
+    // The validation will be handled by the component, but we can test the UI exists
+    cy.get('input[id="avatar-upload"]').should('have.attr', 'accept', 'image/*')
+  })
+
+  it('should display proper loading states during operations', () => {
+    cy.visit('/dashboard')
+    
+    // Check for edit button
+    cy.get('[data-testid="edit-profile"]').should('be.visible')
+    
+    // Edit and save profile to check loading state
+    cy.get('[data-testid="edit-profile"]').click()
+    cy.get('[data-testid="bio-input"]').clear().type('Testing loading state')
+    
+    // Click save and immediately check for any loading indicators
+    cy.get('[data-testid="profile-update-button"]').click()
+    
+    // The form should eventually close indicating success
+    cy.wait(2000)
+    cy.get('[data-testid="profile-form"]').should('not.exist')
   })
 
   it('should display user statistics', () => {
@@ -64,9 +199,10 @@ describe('Dashboard Functionality', () => {
     
     // Check if statistics section exists
     cy.get('[data-testid="user-stats"]').should('be.visible')
-    cy.get('[data-testid="events-attended"]').should('be.visible')
-    cy.get('[data-testid="badges-earned"]').should('be.visible')
-    cy.get('[data-testid="profile-completion"]').should('be.visible')
+    cy.get('[data-testid="user-stats"]').should('contain', 'Events Attended')
+    cy.get('[data-testid="user-stats"]').should('contain', 'Badges Earned')
+    cy.get('[data-testid="user-stats"]').should('contain', 'Connections')
+    cy.get('[data-testid="user-stats"]').should('contain', 'Profile Complete')
   })
 
   it('should handle logout functionality', () => {

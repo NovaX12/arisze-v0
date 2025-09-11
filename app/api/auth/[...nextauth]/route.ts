@@ -4,6 +4,7 @@ import { getDatabase } from '@/lib/mongodb'
 import bcrypt from 'bcryptjs'
 
 export const authOptions: NextAuthOptions = {
+  url: process.env.NEXTAUTH_URL || 'http://localhost:3000',
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -17,21 +18,20 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
+          // Connect to database and find user
           const db = await getDatabase()
-          const user = await db.collection('users').findOne({ 
-            email: credentials.email 
-          })
-
+          const user = await db.collection('users').findOne({ email: credentials.email })
+          
           if (!user) {
+            console.log('User not found:', credentials.email)
             return null
           }
 
-          const isPasswordValid = await bcrypt.compare(
-            credentials.password, 
-            user.password
-          )
-
-          if (!isPasswordValid) {
+          // Verify password
+          const isValidPassword = await bcrypt.compare(credentials.password, user.password)
+          
+          if (!isValidPassword) {
+            console.log('Invalid password for user:', credentials.email)
             return null
           }
 
@@ -55,32 +55,44 @@ export const authOptions: NextAuthOptions = {
     updateAge: 24 * 60 * 60, // 24 hours
   },
   jwt: {
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 2 * 60 * 60, // 2 hours - force quick expiration of old tokens
   },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        console.log('JWT callback - user found:', { id: user.id, email: user.email })
+      try {
+        if (user) {
+          token.id = user.id
+          console.log('JWT callback - user found:', { id: user.id, email: user.email })
+        }
+        return token
+      } catch (error) {
+        console.error('JWT callback error:', error)
+        // Return a clean token to avoid JWT issues
+        return user ? { id: user.id, email: user.email, name: user.name } : token
       }
-      return token
     },
     async session({ session, token }) {
-      if (session.user && token.id) {
-        session.user.id = token.id as string
-        console.log('Session callback - session created:', { 
-          userId: session.user.id, 
-          email: session.user.email 
-        })
+      try {
+        if (session.user && token.id) {
+          session.user.id = token.id as string
+          console.log('Session callback - session created:', { 
+            userId: session.user.id, 
+            email: session.user.email 
+          })
+        }
+        return session
+      } catch (error) {
+        console.error('Session callback error:', error)
+        return session
       }
-      return session
     }
   },
   pages: {
     signIn: '/login',
     error: '/login',
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || 'arisze_super_secret_key_2024_development_only_change_in_production_12345',
+  debug: false, // Disable debug to reduce logs
 }
 
 const handler = NextAuth(authOptions)

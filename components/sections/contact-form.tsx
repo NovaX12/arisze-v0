@@ -141,9 +141,9 @@ export function ContactForm() {
           >
             <Check className="h-8 w-8 text-white" />
           </motion.div>
-          <h3 className="text-2xl font-serif font-bold gradient-text mb-4">Message Sent Successfully!</h3>
-          <p className="text-muted-foreground mb-6">
-            Thank you for reaching out! We'll get back to you as soon as possible.
+          <h3 className="text-2xl font-serif font-bold gradient-text mb-4">Message sent successfully</h3>
+          <p className="text-green-500 mb-6">
+            Message sent successfully
           </p>
           <Button
             onClick={() => setIsSubmitted(false)}

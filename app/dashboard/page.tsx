@@ -68,10 +68,17 @@ export default function DashboardPage() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-center mb-12"
           >
-            <h1 className="text-4xl md:text-5xl font-serif font-bold gradient-text mb-4">My Dashboard</h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-serif font-bold gradient-text mb-4" data-testid="dashboard-title">Dashboard</h1>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">
               Manage your profile, track your achievements, and view your events
             </p>
+            <button
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="px-6 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-300"
+              data-testid="logout-button"
+            >
+              Logout
+            </button>
           </motion.div>
 
           <div className="grid lg:grid-cols-4 gap-8">

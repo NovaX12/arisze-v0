@@ -26,12 +26,10 @@ export async function POST(request: Request) {
       )
     }
 
-    // Basic URL validation
-    try {
-      new URL(avatarUrl)
-    } catch {
+    // Basic validation for base64 data URL or HTTP URL
+    if (!avatarUrl.startsWith('data:image/') && !avatarUrl.startsWith('http')) {
       return NextResponse.json(
-        { error: 'Invalid avatar URL' },
+        { error: 'Invalid avatar URL format' },
         { status: 400 }
       )
     }

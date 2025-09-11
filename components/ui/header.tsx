@@ -34,7 +34,7 @@ export function Header() {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-6">
+          <nav className="hidden lg:flex items-center space-x-6" data-testid="main-nav">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
@@ -68,7 +68,7 @@ export function Header() {
                 <div className="flex items-center space-x-3">
                   <Link href="/dashboard" className="flex items-center space-x-2 hover:opacity-80 transition-opacity" data-testid="user-menu">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={session.user?.avatar} alt={session.user?.name} data-testid="header-avatar" />
+                      <AvatarImage src={session.user?.image || session.user?.avatar} alt={session.user?.name} data-testid="header-avatar" />
                       <AvatarFallback className="bg-gradient-to-r from-primary to-secondary text-white text-xs">
                         {session.user?.name?.split(' ').map(n => n[0]).join('')}
                       </AvatarFallback>
@@ -137,7 +137,7 @@ export function Header() {
                   <>
                     <div className="flex items-center space-x-2 p-2">
                       <Avatar className="h-6 w-6">
-                        <AvatarImage src={session.user?.avatar} alt={session.user?.name} />
+                        <AvatarImage src={session.user?.image || session.user?.avatar} alt={session.user?.name} />
                         <AvatarFallback className="bg-gradient-to-r from-primary to-secondary text-white text-xs">
                           {session.user?.name?.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>

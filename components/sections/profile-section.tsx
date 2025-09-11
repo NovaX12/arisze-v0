@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useToast } from "@/components/ui/use-toast"
 import { getBadgeById } from "@/lib/badges"
 
 export function ProfileSection() {
   const { data: session, status, update } = useSession()
+  const { toast } = useToast()
   const [userData, setUserData] = useState({
     name: "",
     email: "",
@@ -119,6 +121,7 @@ export function ProfileSection() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          name: editData.name,
           university: editData.university,
           year: editData.year,
           major: editData.major,
@@ -131,15 +134,39 @@ export function ProfileSection() {
       if (response.ok) {
         setUserData(editData)
         setIsEditing(false)
-        // Show success message (you could add a toast here)
-        console.log('Profile updated successfully!')
+        
+        // Update session to reflect name changes in navbar
+        if (editData.name !== userData.name) {
+          await update({
+            ...session,
+            user: {
+              ...session?.user,
+              name: editData.name
+            }
+          })
+        }
+        
+        // Show success toast
+        toast({
+          title: "Profile Updated!",
+          description: "Your profile information has been saved successfully.",
+          variant: "default",
+        })
       } else {
         console.error('Failed to update profile:', result.error)
-        // Show error message (you could add a toast here)
+        toast({
+          title: "Update Failed",
+          description: result.error || "Failed to update profile. Please try again.",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error('Error updating profile:', error)
-      // Show error message (you could add a toast here)
+      toast({
+        title: "Network Error",
+        description: "Unable to update profile. Please check your connection and try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -154,13 +181,21 @@ export function ProfileSection() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file')
+      toast({
+        title: "Invalid File Type",
+        description: "Please select an image file (JPG, PNG, GIF, etc.).",
+        variant: "destructive",
+      })
       return
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB')
+      toast({
+        title: "File Too Large",
+        description: "File size must be less than 5MB. Please choose a smaller image.",
+        variant: "destructive",
+      })
       return
     }
 
@@ -201,14 +236,26 @@ export function ProfileSection() {
               }
             })
             
-            console.log('Avatar updated successfully and session synced!')
+            toast({
+              title: "Avatar Updated!",
+              description: "Your profile picture has been updated successfully.",
+              variant: "default",
+            })
           } else {
             console.error('Failed to update avatar:', result.error)
-            alert('Failed to update avatar. Please try again.')
+            toast({
+              title: "Upload Failed",
+              description: result.error || "Failed to update avatar. Please try again.",
+              variant: "destructive",
+            })
           }
         } catch (error) {
           console.error('Error uploading avatar:', error)
-          alert('Error uploading avatar. Please try again.')
+          toast({
+            title: "Upload Error",
+            description: "Error uploading avatar. Please try again.",
+            variant: "destructive",
+          })
         } finally {
           setIsUploadingAvatar(false)
         }
@@ -216,7 +263,11 @@ export function ProfileSection() {
       reader.readAsDataURL(file)
     } catch (error) {
       console.error('Error processing file:', error)
-      alert('Error processing file. Please try again.')
+      toast({
+        title: "Processing Error",
+        description: "Error processing file. Please try again.",
+        variant: "destructive",
+      })
       setIsUploadingAvatar(false)
     }
   }
@@ -224,7 +275,7 @@ export function ProfileSection() {
   const completion = calculateCompletion()
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-testid="user-profile">
       {/* Profile Header */}
       <Card className="p-8 glassmorphism border-0" data-testid="profile-section">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
@@ -360,10 +411,33 @@ export function ProfileSection() {
         </div>
       </Card>
 
+      {/* User Statistics */}
+      <Card className="p-6 glassmorphism border-0" data-testid="user-stats">
+        <h3 className="text-xl font-serif font-bold gradient-text mb-4">Your Statistics</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-accent">0</div>
+            <div className="text-sm text-muted-foreground">Events Attended</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-accent">0</div>
+            <div className="text-sm text-muted-foreground">Badges Earned</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-accent">0</div>
+            <div className="text-sm text-muted-foreground">Connections</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-accent">{completion}%</div>
+            <div className="text-sm text-muted-foreground">Profile Complete</div>
+          </div>
+        </div>
+      </Card>
+
       {/* Editable Profile Form */}
       {isEditing && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-          <Card className="p-8 glassmorphism border-0">
+          <Card className="p-8 glassmorphism border-0" data-testid="profile-form">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-serif font-bold gradient-text">Edit Profile</h3>
               <div className="flex gap-2">

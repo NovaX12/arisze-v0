@@ -8,7 +8,7 @@ import { UniversitiesView } from "@/components/sections/universities-view"
 import { EventsView } from "@/components/sections/events-view"
 
 export default function EventsPage() {
-  const [activeView, setActiveView] = useState<"universities" | "events">("universities")
+  const [activeView, setActiveView] = useState<"universities" | "events">("events")
 
   return (
     <motion.div

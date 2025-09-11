@@ -58,10 +58,14 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Clear previous messages
+    setError('')
+    setSuccess('')
+    
+    // Validate form and show errors immediately
     if (!validateForm()) return
 
     setLoading(true)
-    setError('')
 
     try {
       const response = await fetch('/api/auth/register', {
@@ -137,7 +141,6 @@ export default function SignupPage() {
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-3 rounded-full border border-accent/30 bg-background/50 text-foreground placeholder-muted-foreground focus:border-accent focus:glow-effect transition-all duration-300"
                   placeholder="Enter your full name"
-                  required
                   data-testid="signup-name"
                 />
               </div>
@@ -158,7 +161,6 @@ export default function SignupPage() {
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-3 rounded-full border border-accent/30 bg-background/50 text-foreground placeholder-muted-foreground focus:border-accent focus:glow-effect transition-all duration-300"
                   placeholder="Enter your email"
-                  required
                   data-testid="signup-email"
                 />
               </div>
@@ -179,7 +181,6 @@ export default function SignupPage() {
                   onChange={handleChange}
                   className="w-full pl-10 pr-12 py-3 rounded-full border border-accent/30 bg-background/50 text-foreground placeholder-muted-foreground focus:border-accent focus:glow-effect transition-all duration-300"
                   placeholder="Create a password"
-                  required
                   data-testid="signup-password"
                 />
                 <button
@@ -207,7 +208,6 @@ export default function SignupPage() {
                   onChange={handleChange}
                   className="w-full pl-10 pr-12 py-3 rounded-full border border-accent/30 bg-background/50 text-foreground placeholder-muted-foreground focus:border-accent focus:glow-effect transition-all duration-300"
                   placeholder="Confirm your password"
-                  required
                   data-testid="signup-confirm-password"
                 />
                 <button
@@ -235,6 +235,7 @@ export default function SignupPage() {
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-3 rounded-full border border-accent/30 bg-background/50 text-foreground placeholder-muted-foreground focus:border-accent focus:glow-effect transition-all duration-300"
                   placeholder="Enter your university"
+                  data-testid="signup-university"
                 />
               </div>
             </div>
@@ -265,6 +266,18 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={loading}
+              onClick={(e) => {
+                e.preventDefault()
+                // Clear previous messages
+                setError('')
+                setSuccess('')
+                
+                // Validate form and show errors immediately
+                if (!validateForm()) return
+                
+                // If validation passes, submit the form
+                handleSubmit(e)
+              }}
               className="w-full py-3 px-6 rounded-full bg-gradient-to-r from-primary to-secondary text-white font-semibold hover:scale-105 hover:glow-effect transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {loading ? (
