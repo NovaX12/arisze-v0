@@ -1,24 +1,28 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Calendar, Clock, MapPin, Phone, Loader2, CheckCircle } from "lucide-react"
+import { X, Calendar, Clock, MapPin, Phone, Loader2, CheckCircle, Users, User } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import Image from "next/image"
 
 interface Event {
-  id: number
+  _id?: string
+  id?: number
   title: string
   cafe: string
   image: string
   date: string
+  time?: string
   tags: string[]
   attendees: number
   maxAttendees: number
@@ -26,7 +30,26 @@ interface Event {
   description: string
   contact: string
   address: string
+  eventType?: string
+  createdByName?: string
 }
+
+interface GuestInfo {
+  name: string
+  email: string
+}
+
+const universities = [
+  "Vilnius University",
+  "Kaunas University of Technology",
+  "Vytautas Magnus University",
+  "Lithuanian University of Health Sciences",
+  "Vilnius Gediminas Technical University",
+  "ISM University of Management and Economics",
+  "Lithuanian Academy of Music and Theatre",
+  "Vilnius Academy of Arts",
+  "Other"
+]
 
 interface BookingModalProps {
   event: Event
@@ -56,9 +79,47 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTime, setSelectedTime] = useState<string>("")
   const [name, setName] = useState("")
-  const [studentCount, setStudentCount] = useState("1")
+  const [userPhone, setUserPhone] = useState("")
+  const [university, setUniversity] = useState("")
+  const [hasGuest, setHasGuest] = useState(false)
+  const [guestInfo, setGuestInfo] = useState<GuestInfo>({ name: "", email: "" })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [bookingSuccess, setBookingSuccess] = useState(false)
+  const [hasBooked, setHasBooked] = useState(false)
+  const [checkingBooking, setCheckingBooking] = useState(true)
+
+  // Pre-fill user information from session
+  useEffect(() => {
+    if (session?.user) {
+      setName(session.user.name || "")
+    }
+  }, [session])
+
+  // Check if user has already booked this event
+  useEffect(() => {
+    const checkBookingStatus = async () => {
+      if (!session?.user?.id || !event._id) {
+        setCheckingBooking(false)
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/events/${event._id}/book`)
+        if (response.ok) {
+          const result = await response.json()
+          setHasBooked(result.hasBooked)
+        }
+      } catch (error) {
+        console.error('Error checking booking status:', error)
+      } finally {
+        setCheckingBooking(false)
+      }
+    }
+
+    if (isOpen) {
+      checkBookingStatus()
+    }
+  }, [session, event._id, isOpen])
 
   const currentDate = new Date()
   const currentMonth = currentDate.getMonth()
@@ -79,26 +140,60 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
       return
     }
 
-    // Validate form data
-    if (!selectedDate || !selectedTime || !name || !studentCount) {
-      alert('Please fill in all fields')
+    // Validate required fields
+    if (!userPhone || !university) {
+      toast.error("❌ Missing Information", {
+        description: 'Please provide your phone number and university.',
+      })
       return
+    }
+
+    // Validate guest information if bringing a guest
+    if (hasGuest && (!guestInfo.name || !guestInfo.email)) {
+      toast.error("❌ Guest Information Required", {
+        description: 'Please provide guest name and email.',
+      })
+      return
+    }
+
+    // Validate phone number format
+    const phoneRegex = /^[+]?[0-9\s\-\(\)]{10,15}$/
+    if (!phoneRegex.test(userPhone)) {
+      toast.error("❌ Invalid Phone Number", {
+        description: 'Please provide a valid phone number.',
+      })
+      return
+    }
+
+    // Validate guest email if provided
+    if (hasGuest && guestInfo.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(guestInfo.email)) {
+        toast.error("❌ Invalid Guest Email", {
+          description: 'Please provide a valid guest email address.',
+        })
+        return
+      }
     }
 
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('/api/bookings', {
+      const eventId = event._id || event.id?.toString()
+      if (!eventId) {
+        throw new Error('Event ID not found')
+      }
+
+      const response = await fetch(`/api/events/${eventId}/book`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          venueId: event.id.toString(),
-          venueName: event.cafe,
-          date: selectedDate.toISOString(),
-          time: selectedTime,
-          groupSize: parseInt(studentCount),
+          userPhone,
+          university,
+          hasGuest,
+          guestInfo: hasGuest ? guestInfo : null,
         }),
       })
 
@@ -106,8 +201,9 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
 
       if (response.ok) {
         setBookingSuccess(true)
+        setHasBooked(true)
         toast.success("✅ Event booked successfully!", {
-          description: `${event.cafe} on ${selectedDate.toLocaleDateString()} at ${selectedTime}`,
+          description: result.message || `Successfully booked ${event.title}`,
           duration: 4000,
         })
         
@@ -116,10 +212,10 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
           setBookingSuccess(false)
           onClose()
           // Reset form
-          setSelectedDate(null)
-          setSelectedTime("")
-          setName("")
-          setStudentCount("1")
+          setUserPhone("")
+          setUniversity("")
+          setHasGuest(false)
+          setGuestInfo({ name: "", email: "" })
         }, 2000)
       } else {
         console.error('Booking failed:', result.error)
@@ -296,58 +392,162 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
 
                   {/* Booking Form */}
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="name" className="text-sm font-medium">
-                        Your Name
-                      </Label>
-                      <Input
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
-                        placeholder="Enter your full name"
-                      />
-                    </div>
+                    {checkingBooking ? (
+                      <div className="text-center py-4">
+                        <Loader2 className="h-6 w-6 mx-auto animate-spin mb-2" />
+                        <p className="text-sm text-muted-foreground">Checking booking status...</p>
+                      </div>
+                    ) : hasBooked ? (
+                      <div className="text-center py-6 space-y-3">
+                        <CheckCircle className="h-12 w-12 mx-auto text-green-500" />
+                        <h3 className="text-lg font-semibold text-green-500">Already Booked!</h3>
+                        <p className="text-sm text-muted-foreground">
+                          You have already booked this event. Check your dashboard for details.
+                        </p>
+                        <Button onClick={onClose} variant="outline" className="rounded-full">
+                          Close
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <Label htmlFor="name" className="text-sm font-medium">
+                            Your Name
+                          </Label>
+                          <Input
+                            id="name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
+                            placeholder="Enter your full name"
+                            disabled={!!session?.user?.name}
+                          />
+                        </div>
 
-                    <div>
-                      <Label htmlFor="students" className="text-sm font-medium">
-                        Number of Students
-                      </Label>
-                      <Input
-                        id="students"
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={studentCount}
-                        onChange={(e) => setStudentCount(e.target.value)}
-                        className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
-                      />
-                    </div>
+                        <div>
+                          <Label htmlFor="phone" className="text-sm font-medium">
+                            Phone Number *
+                          </Label>
+                          <Input
+                            id="phone"
+                            type="tel"
+                            value={userPhone}
+                            onChange={(e) => setUserPhone(e.target.value)}
+                            className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
+                            placeholder="+370 123 45678"
+                            required
+                          />
+                        </div>
 
-                    <Button
-                      onClick={handleBooking}
-                      disabled={!selectedDate || !selectedTime || !name || isSubmitting}
-                      className={`w-full rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        bookingSuccess 
-                          ? "bg-green-500 hover:bg-green-600" 
-                          : "bg-gradient-to-r from-primary to-secondary hover:scale-105 hover:glow-effect"
-                      }`}
-                      size="lg"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Booking...
-                        </>
-                      ) : bookingSuccess ? (
-                        <>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Event Booked Successfully!
-                        </>
-                      ) : (
-                        "Confirm Booking"
-                      )}
-                    </Button>
+                        <div>
+                          <Label htmlFor="university" className="text-sm font-medium">
+                            University *
+                          </Label>
+                          <Select value={university} onValueChange={setUniversity} required>
+                            <SelectTrigger className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300">
+                              <SelectValue placeholder="Select your university" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {universities.map((uni) => (
+                                <SelectItem key={uni} value={uni}>
+                                  {uni}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="hasGuest"
+                              checked={hasGuest}
+                              onCheckedChange={(checked) => {
+                                setHasGuest(checked as boolean)
+                                if (!checked) {
+                                  setGuestInfo({ name: "", email: "" })
+                                }
+                              }}
+                            />
+                            <Label htmlFor="hasGuest" className="text-sm font-medium flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              I'll bring a guest
+                            </Label>
+                          </div>
+
+                          {hasGuest && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="space-y-3 pl-6 border-l-2 border-accent/30"
+                            >
+                              <div>
+                                <Label htmlFor="guestName" className="text-sm font-medium">
+                                  Guest Name *
+                                </Label>
+                                <Input
+                                  id="guestName"
+                                  value={guestInfo.name}
+                                  onChange={(e) => setGuestInfo(prev => ({ ...prev, name: e.target.value }))}
+                                  className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
+                                  placeholder="Enter guest's full name"
+                                  required={hasGuest}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="guestEmail" className="text-sm font-medium">
+                                  Guest Email *
+                                </Label>
+                                <Input
+                                  id="guestEmail"
+                                  type="email"
+                                  value={guestInfo.email}
+                                  onChange={(e) => setGuestInfo(prev => ({ ...prev, email: e.target.value }))}
+                                  className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
+                                  placeholder="guest@example.com"
+                                  required={hasGuest}
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+                        </div>
+
+                        <div className="pt-2">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                            <User className="h-4 w-4" />
+                            <span>
+                              Booking for: {hasGuest ? "2 people (you + guest)" : "1 person (you)"}
+                            </span>
+                          </div>
+                          
+                          <Button
+                            onClick={handleBooking}
+                            disabled={!userPhone || !university || isSubmitting || (hasGuest && (!guestInfo.name || !guestInfo.email))}
+                            className={`w-full rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                              bookingSuccess 
+                                ? "bg-green-500 hover:bg-green-600" 
+                                : "bg-gradient-to-r from-primary to-secondary hover:scale-105 hover:glow-effect"
+                            }`}
+                            size="lg"
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Booking...
+                              </>
+                            ) : bookingSuccess ? (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Event Booked Successfully!
+                              </>
+                            ) : (
+                              "Confirm Booking"
+                            )}
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

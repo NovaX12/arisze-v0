@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { motion } from "framer-motion"
-import { Calendar, Clock, MapPin, Users, Eye, X, Loader2 } from "lucide-react"
+import { Calendar, Clock, MapPin, Users, Eye, X, Loader2, UserPlus, Mail, Phone, University } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { CreateEventModal } from "@/components/ui/create-event-modal"
 import { toast } from "sonner"
 
 interface Booking {
@@ -24,67 +26,66 @@ interface Booking {
 export function MyEventsSection() {
   const { data: session } = useSession()
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [createdEvents, setCreatedEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
-  const [cancelling, setCancelling] = useState<string | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [showParticipants, setShowParticipants] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
-  // Fetch user's bookings
   useEffect(() => {
-    const fetchBookings = async () => {
-      if (!session?.user?.id) return
-      
+    const fetchUserEvents = async () => {
+      if (!session?.user?.id) {
+        setLoading(false)
+        return
+      }
+
       try {
-        const response = await fetch('/api/bookings')
-        if (response.ok) {
-          const result = await response.json()
-          setBookings(result.bookings || [])
-        } else {
-          console.error('Failed to fetch bookings')
+        // Fetch booked events
+        const bookingsResponse = await fetch('/api/user/bookings')
+        if (bookingsResponse.ok) {
+          const bookingsData = await bookingsResponse.json()
+          setBookings(bookingsData.bookings || [])
+        }
+
+        // Fetch created events
+        const createdResponse = await fetch('/api/user/created-events')
+        if (createdResponse.ok) {
+          const createdData = await createdResponse.json()
+          setCreatedEvents(createdData.events || [])
         }
       } catch (error) {
-        console.error('Error fetching bookings:', error)
+        console.error('Error fetching user events:', error)
+        toast.error('Failed to load events')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchBookings()
+    fetchUserEvents()
   }, [session])
 
-  // Cancel a booking
-  const handleCancelBooking = async (bookingId: string) => {
-    setCancelling(bookingId)
-    
+  const cancelBooking = async (booking: Booking) => {
     try {
-      const response = await fetch('/api/bookings', {
+      const response = await fetch(`/api/events/${booking.eventId}/book`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ bookingId }),
       })
 
       if (response.ok) {
-        // Remove the cancelled booking from the list
-        setBookings(bookings.filter(booking => booking._id !== bookingId))
-        toast.success("✅ Booking cancelled successfully!", {
-          description: "The event has been removed from your schedule.",
-          duration: 3000,
-        })
+        setBookings(bookings.filter(b => b._id !== booking._id))
+        toast.success('Booking cancelled successfully')
       } else {
-        const result = await response.json()
-        console.error('Failed to cancel booking:', result.error)
-        toast.error("❌ Cancellation failed", {
-          description: result.error || 'Failed to cancel booking. Please try again.',
-        })
+        const error = await response.json()
+        toast.error(error.error || 'Failed to cancel booking')
       }
     } catch (error) {
       console.error('Error cancelling booking:', error)
-      toast.error("❌ Cancellation error", {
-        description: 'Error cancelling booking. Please try again.',
-      })
-    } finally {
-      setCancelling(null)
+      toast.error('Error cancelling booking')
     }
+  }
+
+  const viewParticipants = (event: CreatedEvent) => {
+    setSelectedEvent(event)
+    setShowParticipants(true)
   }
 
   // Format date for display
@@ -100,8 +101,10 @@ export function MyEventsSection() {
 
   // Separate upcoming and past events
   const now = new Date()
-  const upcomingBookings = bookings.filter(booking => new Date(booking.date) >= now)
-  const pastBookings = bookings.filter(booking => new Date(booking.date) < now)
+  const upcomingBookings = bookings.filter(booking => new Date(booking.eventDate) >= now)
+  const pastBookings = bookings.filter(booking => new Date(booking.eventDate) < now)
+  const upcomingCreated = createdEvents.filter(event => new Date(event.date) >= now)
+  const pastCreated = createdEvents.filter(event => new Date(event.date) < now)
 
   if (loading) {
     return (
@@ -134,21 +137,24 @@ export function MyEventsSection() {
         </motion.p>
       </div>
 
-      <Tabs defaultValue="upcoming" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 glassmorphism">
-          <TabsTrigger value="upcoming" className="data-[state=active]:bg-accent data-[state=active]:text-white">
-            Upcoming Events ({upcomingBookings.length})
+      <Tabs defaultValue="booked" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 glassmorphism">
+          <TabsTrigger value="booked" className="data-[state=active]:bg-accent data-[state=active]:text-white">
+            Booked Events ({upcomingBookings.length})
+          </TabsTrigger>
+          <TabsTrigger value="created" className="data-[state=active]:bg-accent data-[state=active]:text-white">
+            My Created Events ({upcomingCreated.length})
           </TabsTrigger>
           <TabsTrigger value="past" className="data-[state=active]:bg-accent data-[state=active]:text-white">
-            Past Events ({pastBookings.length})
+            Past Events ({pastBookings.length + pastCreated.length})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="upcoming" className="space-y-4">
+        <TabsContent value="booked" className="space-y-4">
           {upcomingBookings.length === 0 ? (
             <Card className="p-8 text-center glassmorphism border-0">
               <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No Upcoming Events</h3>
+              <h3 className="text-lg font-semibold mb-2">No Upcoming Bookings</h3>
               <p className="text-muted-foreground mb-4">
                 You haven't booked any events yet. Start exploring events to make your first booking!
               </p>
@@ -169,41 +175,51 @@ export function MyEventsSection() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
-                          <h3 className="text-xl font-semibold">{booking.venueName}</h3>
-                          <Badge variant="secondary" className="bg-green-500/20 text-green-400">
+                          <h3 className="text-xl font-semibold">{booking.eventTitle}</h3>
+                          <Badge className="bg-accent/20 text-accent border-accent/30">
                             {booking.status}
                           </Badge>
+                          {booking.hasGuest && (
+                            <Badge variant="outline">
+                              With Guest
+                            </Badge>
+                          )}
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground mb-3">
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4" />
-                            <span>{formatDate(booking.date)}</span>
+                            <span>{formatDate(booking.eventDate)}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4" />
-                            <span>{booking.time}</span>
+                            <span>{booking.eventTime || 'Time TBA'}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            <span>{booking.groupSize} {booking.groupSize === 1 ? 'person' : 'people'}</span>
+                            <MapPin className="h-4 w-4" />
+                            <span>{booking.eventCafe}</span>
                           </div>
+                        </div>
+                        
+                        <div className="text-sm text-muted-foreground">
+                          <div>University: {booking.university}</div>
+                          <div>Phone: {booking.userPhone}</div>
+                          {booking.hasGuest && booking.guestInfo && (
+                            <div className="mt-2 p-2 bg-muted/50 rounded">
+                              Guest: {booking.guestInfo.name} ({booking.guestInfo.email})
+                            </div>
+                          )}
                         </div>
                       </div>
                       
                       <div className="flex gap-2">
                         <Button
-                          variant="outline"
+                          variant="destructive"
                           size="sm"
-                          onClick={() => handleCancelBooking(booking._id)}
-                          disabled={cancelling === booking._id}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          className="rounded-full"
+                          onClick={() => cancelBooking(booking)}
                         >
-                          {cancelling === booking._id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <X className="h-4 w-4" />
-                          )}
+                          <X className="h-4 w-4 mr-2" />
                           Cancel
                         </Button>
                       </div>
@@ -215,20 +231,94 @@ export function MyEventsSection() {
           )}
         </TabsContent>
 
-        <TabsContent value="past" className="space-y-4">
-          {pastBookings.length === 0 ? (
+        <TabsContent value="created" className="space-y-4">
+          {upcomingCreated.length === 0 ? (
             <Card className="p-8 text-center glassmorphism border-0">
-              <Eye className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">No Created Events</h3>
+              <p className="text-muted-foreground mb-4">
+                You haven't created any events yet. Create your first event to bring people together!
+              </p>
+              <Button onClick={() => setShowCreateModal(true)}>
+                Create Event
+              </Button>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {upcomingCreated.map((event, index) => (
+                <motion.div
+                  key={event._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className="p-6 glassmorphism border-0 hover:glow-effect transition-all duration-300">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <h3 className="text-xl font-semibold">{event.title}</h3>
+                          <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                            Created by you
+                          </Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground mb-3">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            <span>{formatDate(event.date)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            <span>{event.time || 'Time TBA'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            <span>{event.cafe}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            <span>{event.participants.reduce((total, p) => total + 1 + (p.hasGuest ? 1 : 0), 0)} / {event.maxAttendees} participants</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full"
+                          onClick={() => viewParticipants(event)}
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          View Participants ({event.participants.length})
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="past" className="space-y-4">
+          {pastBookings.length === 0 && pastCreated.length === 0 ? (
+            <Card className="p-8 text-center glassmorphism border-0">
+              <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">No Past Events</h3>
               <p className="text-muted-foreground">
-                Your event history will appear here after you attend some events.
+                Your event history will appear here once you start attending or creating events.
               </p>
             </Card>
           ) : (
             <div className="grid gap-4">
+              {/* Past Bookings */}
               {pastBookings.map((booking, index) => (
                 <motion.div
-                  key={booking._id}
+                  key={`booking-${booking._id}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
@@ -237,26 +327,81 @@ export function MyEventsSection() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
-                          <h3 className="text-xl font-semibold">{booking.venueName}</h3>
+                          <h3 className="text-xl font-semibold">{booking.eventTitle}</h3>
                           <Badge variant="secondary" className="bg-gray-500/20 text-gray-400">
-                            completed
+                            attended
+                          </Badge>
+                          {booking.hasGuest && (
+                            <Badge variant="outline" className="opacity-60">
+                              With Guest
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            <span>{formatDate(booking.eventDate)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            <span>{booking.eventTime || 'Time TBA'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            <span>{booking.eventCafe}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+              
+              {/* Past Created Events */}
+              {pastCreated.map((event, index) => (
+                <motion.div
+                  key={`created-${event._id}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: (pastBookings.length + index) * 0.1 }}
+                >
+                  <Card className="p-6 glassmorphism border-0 opacity-75">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <h3 className="text-xl font-semibold">{event.title}</h3>
+                          <Badge variant="secondary" className="bg-green-500/20 text-green-400">
+                            hosted by you
                           </Badge>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4" />
-                            <span>{formatDate(booking.date)}</span>
+                            <span>{formatDate(event.date)}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4" />
-                            <span>{booking.time}</span>
+                            <span>{event.time || 'Time TBA'}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Users className="h-4 w-4" />
-                            <span>{booking.groupSize} {booking.groupSize === 1 ? 'person' : 'people'}</span>
+                            <span>{event.participants.reduce((total, p) => total + 1 + (p.hasGuest ? 1 : 0), 0)} participants attended</span>
                           </div>
                         </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full opacity-60"
+                          onClick={() => viewParticipants(event)}
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          View Participants
+                        </Button>
                       </div>
                     </div>
                   </Card>
@@ -266,6 +411,25 @@ export function MyEventsSection() {
           )}
         </TabsContent>
       </Tabs>
+      
+      <ParticipantDetailsModal
+        event={selectedEvent}
+        isOpen={showParticipants}
+        onClose={() => {
+          setShowParticipants(false)
+          setSelectedEvent(null)
+        }}
+      />
+      
+      {/* Create Event Modal */}
+      <CreateEventModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onEventCreated={() => {
+          // Refresh events list after creation
+          window.location.reload()
+        }}
+      />
     </div>
   )
 }

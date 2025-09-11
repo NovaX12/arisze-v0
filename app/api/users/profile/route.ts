@@ -4,6 +4,8 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { getDatabase } from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 
+// Removed duplicate GET function - using the one with Request parameter below
+
 export async function PUT(request: Request) {
   try {
     // Get session to verify user is authenticated

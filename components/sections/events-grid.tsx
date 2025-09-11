@@ -5,10 +5,11 @@ import { motion } from "framer-motion"
 import { EventCard } from "@/components/ui/event-card"
 import { EventSkeletonCard } from "@/components/ui/event-skeleton-card"
 import { BookingModal } from "@/components/ui/booking-modal"
+import { useEvents } from "@/hooks/use-api"
 import type { EventFilters } from "@/app/events/page"
 
-// TODO: Connect to MongoDB API. Using placeholder data for now.
-const allEvents = [
+// System events (hardcoded for demo purposes)
+const systemEvents = [
   {
     id: 1,
     title: "Board Game Night",
@@ -100,19 +101,33 @@ interface EventsGridProps {
 }
 
 export function EventsGrid({ filters }: EventsGridProps) {
-  const [loading, setLoading] = useState(true)
-  const [selectedEvent, setSelectedEvent] = useState<(typeof allEvents)[0] | null>(null)
-  const [filteredEvents, setFilteredEvents] = useState(allEvents)
+  const { data: userGeneratedEvents, loading: apiLoading } = useEvents()
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null)
+  const [filteredEvents, setFilteredEvents] = useState<any[]>([])
+  const [allEvents, setAllEvents] = useState<any[]>([])
 
+  // Combine system events with user-generated events from API
   useEffect(() => {
-    // Simulate loading
-    setLoading(true)
-    const timer = setTimeout(() => {
-      setLoading(false)
-    }, 1000)
-
-    return () => clearTimeout(timer)
-  }, [filters])
+    const combinedEvents = [
+      ...systemEvents,
+      ...(userGeneratedEvents || []).map((event: any) => ({
+        id: event._id,
+        title: event.title,
+        cafe: event.cafe,
+        image: event.image || '/default-event-image.jpg',
+        date: event.date,
+        tags: event.tags || [],
+        attendees: event.attendees || 0,
+        maxAttendees: event.maxAttendees || 0,
+        university: event.university,
+        description: event.description,
+        contact: event.contact,
+        address: event.address,
+        eventType: 'user-generated'
+      }))
+    ]
+    setAllEvents(combinedEvents)
+  }, [userGeneratedEvents])
 
   useEffect(() => {
     let filtered = allEvents
@@ -138,9 +153,9 @@ export function EventsGrid({ filters }: EventsGridProps) {
     }
 
     setFilteredEvents(filtered)
-  }, [filters])
+  }, [filters, allEvents])
 
-  if (loading) {
+  if (apiLoading || allEvents.length === 0) {
     return (
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
         {Array.from({ length: 6 }).map((_, index) => (

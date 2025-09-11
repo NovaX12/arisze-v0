@@ -55,7 +55,18 @@ export const authOptions: NextAuthOptions = {
     updateAge: 24 * 60 * 60, // 24 hours
   },
   jwt: {
-    maxAge: 2 * 60 * 60, // 2 hours - force quick expiration of old tokens
+    maxAge: 30 * 24 * 60 * 60, // 30 days - align with session
+  },
+  cookies: {
+    sessionToken: {
+      name: 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: false // Set to true in production with HTTPS
+      }
+    }
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -91,8 +102,18 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
     error: '/login',
   },
-  secret: process.env.NEXTAUTH_SECRET || 'arisze_super_secret_key_2024_development_only_change_in_production_12345',
+  secret: process.env.NEXTAUTH_SECRET,
   debug: false, // Disable debug to reduce logs
+  
+  // Add error handling for JWT issues
+  events: {
+    async signOut() {
+      console.log('User signed out - clearing session')
+    },
+    async session({ session }) {
+      console.log('Session event - user active:', session?.user?.email)
+    }
+  }
 }
 
 const handler = NextAuth(authOptions)

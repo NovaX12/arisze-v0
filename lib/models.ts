@@ -25,7 +25,11 @@ export interface Event {
   university: string
   contact: string
   address: string
-  createdBy: string
+  createdBy: string // 'system' for admin events, userId for user-generated events
+  createdByName?: string // Name of the user who created the event
+  createdByEmail?: string // Email of the user who created the event
+  eventType: 'system' | 'user-generated' // Distinguish between system and user events
+  isPublic: boolean // Whether the event is visible to all users
   createdAt: Date
   updatedAt: Date
 }
@@ -83,10 +87,21 @@ export interface Booking {
   userId: string
   userName: string
   userEmail: string
+  userPhone?: string
+  userUniversity?: string
+  userYear?: string
+  userMajor?: string
   groupSize: number
+  hasGuest: boolean
+  guestInfo?: {
+    name: string
+    email: string
+  }
   date: Date
   time: string
   status: 'pending' | 'confirmed' | 'cancelled'
+  venueId?: string // For backward compatibility
+  venueName?: string // For backward compatibility
   createdAt: Date
   updatedAt: Date
 }
@@ -109,5 +124,44 @@ export interface UserBadge {
   userId: string
   badgeId: string
   earnedAt: Date
+}
+
+// New interface for event participants tracking
+export interface EventParticipant {
+  _id?: string
+  eventId: string
+  userId: string
+  userName: string
+  userEmail: string
+  userPhone?: string
+  userUniversity?: string
+  groupSize: number
+  hasGuest: boolean
+  guestInfo?: {
+    name: string
+    email: string
+  }
+  joinedAt: Date
+  status: 'registered' | 'attended' | 'no-show'
+}
+
+// Interface for user's created events tracking
+export interface UserCreatedEvent {
+  _id?: string
+  userId: string
+  eventId: string
+  createdAt: Date
+}
+
+// Enhanced user profile for event management
+export interface UserEventProfile {
+  _id?: string
+  userId: string
+  eventsCreated: number
+  eventsAttended: number
+  totalParticipantsHosted: number
+  lastEventCreated?: Date
+  lastEventAttended?: Date
+  updatedAt: Date
 }
 

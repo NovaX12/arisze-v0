@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     
     // Create new booking
     const newBooking = {
-      userId: new ObjectId(session.user.id),
+      userId: session.user.id,
       venueId,
       venueName,
       date: new Date(date),
@@ -86,7 +86,7 @@ export async function GET(request: Request) {
     // Fetch user's bookings
     const bookings = await db.collection('bookings')
       .find({ 
-        userId: new ObjectId(session.user.id),
+        userId: session.user.id,
         status: 'confirmed' // Only show active bookings
       })
       .sort({ date: 1, time: 1 }) // Sort by date and time
@@ -132,8 +132,8 @@ export async function DELETE(request: Request) {
     
     // Delete the booking (only if it belongs to the current user)
     const result = await db.collection('bookings').deleteOne({
-      _id: new ObjectId(bookingId),
-      userId: new ObjectId(session.user.id)
+      _id: bookingId,
+      userId: session.user.id
     })
 
     if (result.deletedCount === 0) {

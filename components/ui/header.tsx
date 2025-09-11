@@ -68,9 +68,9 @@ export function Header() {
                 <div className="flex items-center space-x-3">
                   <Link href="/dashboard" className="flex items-center space-x-2 hover:opacity-80 transition-opacity" data-testid="user-menu">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={session.user?.image || session.user?.avatar} alt={session.user?.name} data-testid="header-avatar" />
+                      <AvatarImage src={session.user?.image || ''} alt={session.user?.name || 'User'} data-testid="header-avatar" />
                       <AvatarFallback className="bg-gradient-to-r from-primary to-secondary text-white text-xs">
-                        {session.user?.name?.split(' ').map(n => n[0]).join('')}
+                        {session.user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-medium text-foreground">{session.user?.name}</span>
@@ -137,9 +137,9 @@ export function Header() {
                   <>
                     <div className="flex items-center space-x-2 p-2">
                       <Avatar className="h-6 w-6">
-                        <AvatarImage src={session.user?.image || session.user?.avatar} alt={session.user?.name} />
+                        <AvatarImage src={session.user?.image || ''} alt={session.user?.name || 'User'} />
                         <AvatarFallback className="bg-gradient-to-r from-primary to-secondary text-white text-xs">
-                          {session.user?.name?.split(' ').map(n => n[0]).join('')}
+                          {session.user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-sm font-medium text-foreground">{session.user?.name}</span>

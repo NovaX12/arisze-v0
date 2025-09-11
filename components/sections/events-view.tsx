@@ -1,12 +1,15 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useSession } from "next-auth/react"
 import { motion } from "framer-motion"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Calendar, MapPin, Clock, Users, Search, Filter } from "lucide-react"
+import { Calendar, MapPin, Clock, Users, Search, Filter, Plus } from "lucide-react"
 import { useEvents } from "@/hooks/use-api"
+import { CreateEventModal } from '@/components/ui/create-event-modal'
+import { BookingModal } from '@/components/ui/booking-modal'
 
 interface Event {
   _id: string
@@ -41,11 +44,15 @@ interface DisplayEvent {
 }
 
 export function EventsView() {
+  const { data: session } = useSession()
   const { data: apiEvents, loading: apiLoading, error } = useEvents()
   const [filteredEvents, setFilteredEvents] = useState<DisplayEvent[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [mounted, setMounted] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<any>(null)
 
   const categories = ["All", "Board Games", "Study", "Live Music", "Art", "Workshop", "Social", "Academic", "Entertainment"]
 
@@ -98,10 +105,12 @@ export function EventsView() {
   }, [searchTerm, selectedCategory, apiEvents, mounted, convertToDisplayEvents])
 
   const handleBookEvent = (eventId: string) => {
-    // TODO: Implement real booking API call
-    console.log('Booking event:', eventId)
-    // For now, just show a success message
-    alert('Event booked successfully! (This is a demo - booking not yet implemented)')
+    // Find the event from apiEvents
+    const event = apiEvents?.find(e => e._id === eventId || e.id?.toString() === eventId)
+    if (event) {
+      setSelectedEvent(event)
+      setShowBookingModal(true)
+    }
   }
 
   if (!mounted || apiLoading) {
@@ -133,6 +142,23 @@ export function EventsView() {
 
   return (
     <div className="space-y-8">
+      {/* Header with Create Event Button */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Discover Events</h2>
+          <p className="text-muted-foreground">Find and join amazing events in your area</p>
+        </div>
+        {session && (
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-gradient-to-r from-primary to-secondary hover:scale-105 hover:glow-effect transition-all duration-300"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Event
+          </Button>
+        )}
+      </div>
+
       {/* Search and Filter Controls */}
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
@@ -230,6 +256,28 @@ export function EventsView() {
         <div className="text-center py-12">
           <p className="text-muted-foreground">No events found matching your criteria.</p>
         </div>
+      )}
+
+      {/* Create Event Modal */}
+      <CreateEventModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onEventCreated={() => {
+          // Refresh events list after creation
+          window.location.reload()
+        }}
+      />
+
+      {/* Booking Modal */}
+      {selectedEvent && (
+        <BookingModal
+          event={selectedEvent}
+          isOpen={showBookingModal}
+          onClose={() => {
+            setShowBookingModal(false)
+            setSelectedEvent(null)
+          }}
+        />
       )}
     </div>
   )

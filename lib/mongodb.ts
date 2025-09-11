@@ -38,10 +38,10 @@ class MockDatabase {
     const data = this.collections.get(name)!
     
     return {
-      find: (query: any = {}) => ({
-        toArray: async () => {
-          if (Object.keys(query).length === 0) return data
-          return data.filter(item => {
+      find: (query: any = {}) => {
+        let filteredData = data
+        if (Object.keys(query).length > 0) {
+          filteredData = data.filter(item => {
             return Object.entries(query).every(([key, value]) => {
               if (value && typeof value === 'object' && '$eq' in value) {
                 return item[key] === (value as any).$eq
@@ -50,10 +50,34 @@ class MockDatabase {
             })
           })
         }
-      }),
+        
+        return {
+          sort: (sortQuery: any) => ({
+            toArray: async () => {
+              const sorted = [...filteredData]
+              if (sortQuery) {
+                const sortKey = Object.keys(sortQuery)[0]
+                const sortOrder = sortQuery[sortKey]
+                sorted.sort((a, b) => {
+                  if (sortOrder === -1) {
+                    return b[sortKey] > a[sortKey] ? 1 : -1
+                  }
+                  return a[sortKey] > b[sortKey] ? 1 : -1
+                })
+              }
+              return sorted
+            }
+          }),
+          toArray: async () => filteredData
+        }
+      },
       findOne: async (query: any = {}) => {
+        if (name === 'users' && query.email) {
+          console.log(`🔍 Mock DB: Searching for user with email: ${query.email}. Total users: ${data.length}`)
+          console.log(`📋 Available users: ${data.map(u => u.email).join(', ')}`)
+        }
         if (Object.keys(query).length === 0) return data[0] || null
-        return data.find(item => {
+        const result = data.find(item => {
           return Object.entries(query).every(([key, value]) => {
             if (value && typeof value === 'object' && '$eq' in value) {
               return item[key] === (value as any).$eq
@@ -61,10 +85,18 @@ class MockDatabase {
             return item[key] === value
           })
         }) || null
+        if (name === 'users' && query.email) {
+          console.log(`${result ? '✅' : '❌'} User ${query.email} ${result ? 'found' : 'not found'}`)
+        }
+        return result
       },
       insertOne: async (doc: any) => {
         const newDoc = { ...doc, _id: Date.now().toString() }
         data.push(newDoc)
+        console.log(`📝 Mock DB: Inserted document into ${name} collection. Total items: ${data.length}`)
+        if (name === 'users') {
+          console.log(`👤 User added: ${newDoc.email} (ID: ${newDoc._id})`)
+        }
         return { insertedId: newDoc._id }
       },
       updateOne: async (filter: any, update: any) => {
@@ -98,18 +130,73 @@ class MockDatabase {
 }
 
 let client: MongoClient
-let clientPromise: Promise<MongoClient | null> | undefined
-let mockDb: MockDatabase = new MockDatabase()
+let clientPromise: Promise<MongoClient | null>
+
+// Global singleton for mock database to ensure persistence across requests
+let globalWithMockDb = global as typeof globalThis & {
+  _mockDb?: MockDatabase
+  _mockDbInitialized?: boolean
+}
+
+if (!globalWithMockDb._mockDb) {
+  globalWithMockDb._mockDb = new MockDatabase()
+}
+
+let mockDb: MockDatabase = globalWithMockDb._mockDb
+
+// Add some sample data to mock database (only if not already initialized)
+if ((USE_MOCK_DB || process.env.NODE_ENV === 'development') && !globalWithMockDb._mockDbInitialized) {
+  // Add sample events
+  const sampleEvents = [
+    {
+      _id: '1',
+      title: 'Sample Event 1',
+      description: 'This is a sample event for testing',
+      date: new Date().toISOString(),
+      location: 'Sample Location',
+      isPublic: true,
+      eventType: 'system',
+      createdBy: 'system',
+      createdAt: new Date().toISOString(),
+      maxAttendees: 50,
+      currentAttendees: 0
+    },
+    {
+      _id: '2',
+      title: 'Sample Event 2',
+      description: 'Another sample event for testing',
+      date: new Date(Date.now() + 86400000).toISOString(),
+      location: 'Another Location',
+      isPublic: true,
+      eventType: 'user-generated',
+      createdBy: 'user123',
+      createdAt: new Date().toISOString(),
+      maxAttendees: 30,
+      currentAttendees: 5
+    }
+  ]
+  
+  // Initialize events collection with sample data
+  const eventsCollection = mockDb.collection('events')
+  sampleEvents.forEach(event => {
+    eventsCollection.insertOne(event)
+  })
+  
+  // Mark as initialized
+  globalWithMockDb._mockDbInitialized = true
+  console.log('📝 Mock database initialized with sample data')
+}
 
 if (USE_MOCK_DB) {
   console.log('📝 Using mock database (USE_MOCK_DB=true)')
+  clientPromise = Promise.resolve(null)
 } else {
   console.log('🔄 Attempting to connect to MongoDB Atlas...')
   if (process.env.NODE_ENV === 'development') {
     // In development mode, use a global variable so that the value
     // is preserved across module reloads caused by HMR (Hot Module Replacement).
     let globalWithMongo = global as typeof globalThis & {
-      _mongoClientPromise?: Promise<MongoClient>
+      _mongoClientPromise?: Promise<MongoClient | null>
     }
 
     if (!globalWithMongo._mongoClientPromise) {
@@ -117,7 +204,6 @@ if (USE_MOCK_DB) {
       globalWithMongo._mongoClientPromise = client.connect().catch(error => {
         console.error('❌ MongoDB connection failed:', error.message)
         console.log('🔄 Falling back to mock database due to connection issues')
-        // Return a mock client that will use mock database
         return null
       })
     }
@@ -135,7 +221,13 @@ if (USE_MOCK_DB) {
 
 // Export a module-scoped MongoClient promise. By doing this in a
 // separate module, the client can be shared across functions.
-export default clientPromise!
+export default clientPromise
+
+// Legacy function for backward compatibility
+export async function connectToDatabase(): Promise<{ db: Db }> {
+  const db = await getDatabase()
+  return { db }
+}
 
 export async function getDatabase(): Promise<Db> {
   if (USE_MOCK_DB) {
@@ -143,7 +235,7 @@ export async function getDatabase(): Promise<Db> {
   }
   
   try {
-    const client = await clientPromise!
+    const client = await clientPromise
     if (!client) {
       console.log('🔄 MongoDB client is null, using mock database')
       return mockDb as any
