@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CreateEventModal } from "@/components/ui/create-event-modal"
+import { ParticipantDetailsModal } from "@/components/ui/participant-details-modal"
 import { toast } from "sonner"
 
 interface Booking {

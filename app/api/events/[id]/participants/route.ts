@@ -19,8 +19,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const eventId = params.id
     const db = await getDatabase()
     
+    // Validate ObjectId format
+    if (!ObjectId.isValid(eventId)) {
+      return NextResponse.json(
+        { error: 'Invalid event ID' },
+        { status: 400 }
+      )
+    }
+
     // First, verify that the user is the creator of this event or has permission to view participants
-    const event = await db.collection('events').findOne({ _id: eventId })
+    const event = await db.collection('events').findOne({ _id: new ObjectId(eventId) })
     
     if (!event) {
       return NextResponse.json(
@@ -37,35 +45,36 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       )
     }
     
-    // Get all participants for this event
-    const participants = await db.collection('eventParticipants')
+    // Get all participants for this event from bookings collection
+    const participants = await db.collection('bookings')
       .find({ eventId: eventId })
-      .sort({ joinedAt: -1 })
+      .sort({ createdAt: -1 })
       .toArray()
     
-    // Get detailed booking information
-    const participantsWithBookingDetails = await Promise.all(
-      participants.map(async (participant) => {
-        const booking = await db.collection('bookings').findOne({
-          eventId: eventId,
-          userId: participant.userId
-        })
-        
-        return {
-          ...participant,
-          bookingDetails: booking
-        }
-      })
-    )
+    // Transform bookings to participant format
+    const participantsWithDetails = participants.map(booking => ({
+      _id: booking._id,
+      userId: booking.userId,
+      userName: booking.userName,
+      userEmail: booking.userEmail,
+      userPhone: booking.userPhone,
+      userUniversity: booking.userUniversity || booking.university,
+      groupSize: booking.groupSize || 1,
+      hasGuest: booking.hasGuest || false,
+      guestInfo: booking.guestInfo || null,
+      joinedAt: booking.createdAt,
+      status: booking.status || 'confirmed',
+      bookingDetails: booking
+    }))
     
     // Calculate statistics
     const stats = {
-      totalParticipants: participants.length,
-      confirmedParticipants: participants.filter(p => p.status === 'confirmed').length,
-      participantsWithGuests: participants.filter(p => p.hasGuest).length,
-      totalAttendees: participants.reduce((sum, p) => sum + (p.hasGuest ? 2 : 1), 0),
-      universities: [...new Set(participants.map(p => p.university))],
-      recentJoins: participants.filter(p => {
+      totalParticipants: participantsWithDetails.length,
+      confirmedParticipants: participantsWithDetails.filter(p => p.status === 'confirmed').length,
+      participantsWithGuests: participantsWithDetails.filter(p => p.hasGuest).length,
+      totalAttendees: participantsWithDetails.reduce((sum, p) => sum + p.groupSize + (p.hasGuest ? 1 : 0), 0),
+      universities: [...new Set(participantsWithDetails.map(p => p.userUniversity).filter(Boolean))],
+      recentJoins: participantsWithDetails.filter(p => {
         const joinDate = new Date(p.joinedAt)
         const threeDaysAgo = new Date()
         threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
@@ -82,7 +91,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         maxAttendees: event.maxAttendees,
         currentAttendees: event.attendees || 0
       },
-      participants: participantsWithBookingDetails,
+      participants: participantsWithDetails,
       stats: stats
     })
     
@@ -127,8 +136,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       )
     }
     
-    // Update participant status
-    const updateResult = await db.collection('eventParticipants').updateOne(
+    // Update participant status in bookings collection
+    const updateResult = await db.collection('bookings').updateOne(
       { 
         _id: new ObjectId(participantId),
         eventId: eventId 
@@ -147,27 +156,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json(
         { error: 'Participant not found' },
         { status: 404 }
-      )
-    }
-    
-    // Also update the corresponding booking status
-    const participant = await db.collection('eventParticipants').findOne({
-      _id: new ObjectId(participantId)
-    })
-    
-    if (participant) {
-      await db.collection('bookings').updateOne(
-        {
-          eventId: eventId,
-          userId: participant.userId
-        },
-        {
-          $set: {
-            status: status,
-            notes: notes || '',
-            updatedAt: new Date()
-          }
-        }
       )
     }
     
