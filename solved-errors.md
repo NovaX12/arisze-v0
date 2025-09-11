@@ -10,6 +10,7 @@ This document contains detailed explanations of all errors that were encountered
 5. [API Route Structure Issues](#api-route-structure-issues)
 6. [Cypress Test Configuration](#cypress-test-configuration)
 7. [Environment Variable Configuration](#environment-variable-configuration)
+8. [MongoDB Atlas Connection and Authentication Issues](#mongodb-atlas-connection-and-authentication-issues)
 
 ---
 
@@ -403,8 +404,140 @@ When facing persistent infrastructure issues (like SSL/TLS compatibility), imple
 
 ---
 
+## MongoDB Atlas Connection and Authentication Issues
+
+### **Error Description**
+Multiple interconnected issues preventing proper MongoDB Atlas connection and user authentication:
+
+1. **MongoDB URI Mismatch**:
+   ```
+   querySrv ENOTFOUND _mongodb._tcp.cluster0.mongodb.net
+   ```
+
+2. **Mock Database Override**:
+   ```
+   Application showing mock events instead of real MongoDB data
+   ```
+
+3. **Google OAuth Conflicts**:
+   ```
+   NextAuth configuration conflicts with credentials-based authentication
+   ```
+
+4. **Missing Environment Variables**:
+   ```
+   NEXTAUTH_SECRET and NEXTAUTH_URL not properly configured
+   ```
+
+### **Root Cause**
+The application had multiple configuration mismatches:
+- Hardcoded MongoDB URI in `lib/mongodb.ts` differed from `.env.local`
+- `USE_MOCK_DB=true` was overriding real database connections
+- Google OAuth provider was conflicting with credentials authentication
+- Missing NextAuth environment variables
+
+### **Human Explanation**
+Imagine trying to connect to a building using the wrong address while also having a backup key that doesn't work, and the security system is configured for a different type of access card. All these issues needed to be fixed simultaneously for the authentication system to work properly.
+
+### **Solution Process**
+
+#### **Step 1: Fixed MongoDB URI Mismatch**
+```javascript
+// Before (in lib/mongodb.ts)
+const uri = "mongodb+srv://cluster0.mongodb.net/arisze"
+
+// After (corrected to match .env.local)
+const uri = process.env.MONGODB_URI || "mongodb+srv://kathanchauhan22_db_user:NovaX135@arisze.y20yxd7.mongodb.net/arisze?retryWrites=true&w=majority"
+```
+
+#### **Step 2: Disabled Mock Database**
+```bash
+# In .env.local
+USE_MOCK_DB=false  # Changed from true
+```
+
+#### **Step 3: Removed Google OAuth Provider**
+```javascript
+// Removed from app/api/auth/[...nextauth]/route.ts
+GoogleProvider({
+  clientId: process.env.GOOGLE_CLIENT_ID!,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+})
+```
+
+#### **Step 4: Added Missing Environment Variables**
+```bash
+# Added to .env.local
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key-here
+```
+
+#### **Step 5: Verified Database Connection**
+Created test script to verify:
+- MongoDB Atlas connection
+- User document retrieval
+- Password hash comparison
+- Authentication flow
+
+### **Final Solution**
+The complete fix involved:
+
+1. **Environment Configuration**:
+   ```bash
+   MONGODB_URI=mongodb+srv://kathanchauhan22_db_user:NovaX135@arisze.y20yxd7.mongodb.net/arisze?retryWrites=true&w=majority
+   NEXTAUTH_URL=http://localhost:3000
+   NEXTAUTH_SECRET=development-secret-key
+   USE_MOCK_DB=false
+   ```
+
+2. **NextAuth Configuration**:
+   ```javascript
+   // Simplified to credentials only
+   providers: [
+     CredentialsProvider({
+       name: "credentials",
+       credentials: {
+         email: { label: "Email", type: "email" },
+         password: { label: "Password", type: "password" }
+       },
+       async authorize(credentials) {
+         // Database authentication logic
+       }
+     })
+   ]
+   ```
+
+3. **Database Connection**:
+   ```javascript
+   // Consistent URI usage across all files
+   const uri = process.env.MONGODB_URI
+   ```
+
+### **Verification Steps**
+1. **Database Connection**: Confirmed connection to MongoDB Atlas
+2. **User Authentication**: Verified password hashing and comparison
+3. **Events Display**: Confirmed real events from database are shown
+4. **Registration Flow**: Tested new user creation with proper password hashing
+
+### **Key Learning**
+When dealing with authentication systems:
+1. Ensure all environment variables are consistent across files
+2. Disable mock data when testing real database connections
+3. Simplify authentication providers to avoid conflicts
+4. Test the complete authentication flow, not just individual components
+5. Use proper MongoDB connection strings with all required parameters
+
+### **Files Modified**
+- `lib/mongodb.ts` - Fixed MongoDB URI
+- `.env.local` - Added missing environment variables
+- `app/api/auth/[...nextauth]/route.ts` - Removed Google OAuth
+- `lib/auth.ts` - Updated NextAuth configuration
+- `app/api/events/route.ts` - Ensured real database usage
+
+---
+
 ## Summary
 
-These errors were successfully resolved through systematic debugging, understanding the differences between Next.js router systems, proper database configuration, and comprehensive testing setup. The key was identifying the root cause of each issue and implementing the appropriate solution for the App Router architecture.
+These errors were successfully resolved through systematic debugging, understanding the differences between Next.js router systems, proper database configuration, comprehensive authentication setup, and thorough testing. The key was identifying interconnected configuration issues and implementing coordinated solutions across multiple files and systems.
 
 **Note on MongoDB Connection**: While the SSL/TLS issue persists on Windows, the application now has a robust fallback system that allows full functionality with mock data. The real MongoDB connection can be enabled by setting `USE_MOCK_DB=false` once the SSL issue is resolved.
