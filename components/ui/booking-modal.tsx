@@ -328,11 +328,15 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {event.tags.map((tag) => (
+                    {event.tags && event.tags.length > 0 ? event.tags.map((tag) => (
                       <Badge key={tag} variant="outline" className="border-accent/30 text-accent">
                         {tag}
                       </Badge>
-                    ))}
+                    )) : (
+                      <Badge variant="outline" className="border-accent/30 text-accent">
+                        General Event
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>

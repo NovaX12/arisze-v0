@@ -45,11 +45,11 @@ interface DisplayEvent {
 
 export function EventsView() {
   const { data: session } = useSession()
+  const [refreshKey, setRefreshKey] = useState(0)
   const { data: apiEvents, loading: apiLoading, error } = useEvents(refreshKey)
   const [filteredEvents, setFilteredEvents] = useState<DisplayEvent[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
-  const [refreshKey, setRefreshKey] = useState(0)
   const [mounted, setMounted] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showBookingModal, setShowBookingModal] = useState(false)
