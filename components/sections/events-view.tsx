@@ -17,9 +17,9 @@ interface Event {
   description: string
   date: string
   time: string
-  cafe: string
+  venue?: string
+  cafe?: string
   address: string
-  university: string
   tags: string[]
   attendees: number
   maxAttendees: number
@@ -67,7 +67,7 @@ export function EventsView() {
       description: event.description || '',
       date: event.date || new Date().toISOString(),
       time: event.time || '',
-      location: `${event.cafe || ''} - ${event.address || ''}`,
+      location: `${event.venue || event.cafe || 'TBA'} - ${event.address || ''}`,
       category: (event.tags && event.tags[0]) || "General",
       maxParticipants: event.maxAttendees || 0,
       currentParticipants: event.attendees || 0,
@@ -81,15 +81,19 @@ export function EventsView() {
 
   useEffect(() => {
     if (apiEvents && mounted) {
-      const displayEvents = convertToDisplayEvents(apiEvents)
+      // Extract events array from API response
+      const eventsArray = apiEvents.events || []
+      const displayEvents = convertToDisplayEvents(eventsArray)
       setFilteredEvents(displayEvents)
     }
-  }, [apiEvents, mounted])
+  }, [apiEvents, mounted, convertToDisplayEvents])
 
   useEffect(() => {
     if (!mounted || !apiEvents) return
     
-    let displayEvents = convertToDisplayEvents(apiEvents)
+    // Extract events array from API response
+    const eventsArray = apiEvents.events || []
+    let displayEvents = convertToDisplayEvents(eventsArray)
 
     if (searchTerm) {
       displayEvents = displayEvents.filter(event =>
@@ -107,7 +111,7 @@ export function EventsView() {
 
   const handleBookEvent = (eventId: string) => {
     // Find the event from apiEvents
-    const event = apiEvents?.find(e => e._id === eventId || e.id?.toString() === eventId)
+    const event = apiEvents?.events?.find((e: Event) => e._id === eventId || e._id?.toString() === eventId)
     if (event) {
       setSelectedEvent(event)
       setShowBookingModal(true)
@@ -143,21 +147,12 @@ export function EventsView() {
 
   return (
     <div className="space-y-8">
-      {/* Header with Create Event Button */}
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold mb-2">Discover Events</h2>
           <p className="text-muted-foreground">Find and join amazing events in your area</p>
         </div>
-        {session && (
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-gradient-to-r from-primary to-secondary hover:scale-105 hover:glow-effect transition-all duration-300"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Event
-          </Button>
-        )}
       </div>
 
       {/* Search and Filter Controls */}

@@ -23,7 +23,6 @@ export function CreatePostComponent() {
 
     setIsPosting(true)
     // TODO: Connect to API to create post
-    console.log("Creating post:", postContent)
 
     // Simulate API call
     setTimeout(() => {

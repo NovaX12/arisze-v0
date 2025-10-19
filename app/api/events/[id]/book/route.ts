@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
 import { getDatabase } from '@/lib/mongodb'
-import { Booking, EventParticipant } from '@/lib/models'
 import { ObjectId } from 'mongodb'
+import { Booking, EventParticipant } from '@/lib/models'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -119,16 +121,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     // Create the booking
     const newBooking: Omit<Booking, '_id'> = {
       eventId: eventId,
-      eventTitle: event.title,
       userId: session.user.id,
       userName: session.user.name || 'Unknown User',
       userEmail: session.user.email || '',
       userPhone: bookingData.userPhone,
-      university: bookingData.university,
+      groupSize: bookingData.groupSize || 1,
       hasGuest: bookingData.hasGuest || false,
-      guestInfo: bookingData.hasGuest ? bookingData.guestInfo : null,
-      bookingDate: new Date(),
-      eventDate: eventDate,
+      guestInfo: bookingData.hasGuest ? bookingData.guestInfo : undefined,
+      date: eventDate,
+      time: event.time,
       status: 'confirmed',
       createdAt: new Date(),
       updatedAt: new Date()
@@ -138,16 +139,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     
     // Create event participant record
     const participant: Omit<EventParticipant, '_id'> = {
-      eventId: eventId,
       userId: session.user.id,
       userName: session.user.name || 'Unknown User',
       userEmail: session.user.email || '',
       userPhone: bookingData.userPhone,
-      university: bookingData.university,
+      groupSize: bookingData.groupSize || 1,
       hasGuest: bookingData.hasGuest || false,
-      guestInfo: bookingData.hasGuest ? bookingData.guestInfo : null,
+      guestInfo: bookingData.hasGuest ? bookingData.guestInfo : undefined,
       joinedAt: new Date(),
-      status: 'confirmed'
+      status: 'registered'
     }
     
     await db.collection('eventParticipants').insertOne(participant)

@@ -1,8 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
 import { getDatabase } from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   try {

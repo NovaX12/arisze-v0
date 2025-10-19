@@ -220,26 +220,6 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {/* University Field */}
-            <div>
-              <label htmlFor="university" className="block text-sm font-medium text-foreground mb-2">
-                University (Optional)
-              </label>
-              <div className="relative">
-                <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <input
-                  type="text"
-                  id="university"
-                  name="university"
-                  value={formData.university}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 rounded-full border border-accent/30 bg-background/50 text-foreground placeholder-muted-foreground focus:border-accent focus:glow-effect transition-all duration-300"
-                  placeholder="Enter your university"
-                  data-testid="signup-university"
-                />
-              </div>
-            </div>
-
             {/* Error Message */}
             {error && (
               <motion.div

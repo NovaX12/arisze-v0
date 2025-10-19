@@ -31,29 +31,23 @@ export default function LoginPage() {
     setError('')
 
     try {
-      console.log('Attempting login with:', { email: formData.email })
       const result = await signIn('credentials', {
         email: formData.email,
         password: formData.password,
         redirect: false,
       })
 
-      console.log('Login result:', result)
-
       if (result?.error) {
-        console.error('Login error:', result.error)
         setError('Invalid email or password')
       } else if (result?.ok) {
-        console.log('Login successful, redirecting to dashboard')
         // Check if there's a callback URL to redirect to
         const callbackUrl = '/dashboard'
         router.push(callbackUrl)
       } else {
-        console.error('Unexpected login result:', result)
         setError('Login failed. Please try again.')
       }
     } catch (error) {
-      console.error('Login exception:', error)
+      console.error('Login error:', error)
       setError('An error occurred. Please try again.')
     } finally {
       setLoading(false)

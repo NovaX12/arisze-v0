@@ -34,7 +34,6 @@ export function CafeCard({ cafe }: CafeCardProps) {
 
   const handleBooking = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Booking submitted:", bookingData)
     // Handle booking submission
   }
 
@@ -66,11 +65,15 @@ export function CafeCard({ cafe }: CafeCardProps) {
         <div className="mb-6">
           <h4 className="text-sm font-medium text-white mb-3">Activities</h4>
           <div className="flex flex-wrap gap-2">
-            {cafe.activities.map((activity, index) => (
+            {cafe.activities && cafe.activities.length > 0 ? cafe.activities.map((activity, index) => (
               <span key={index} className="px-3 py-1 text-xs rounded-full bg-background/50 text-muted-foreground">
                 {activity}
               </span>
-            ))}
+            )) : (
+              <span className="px-3 py-1 text-xs rounded-full bg-background/50 text-muted-foreground">
+                No activities listed
+              </span>
+            )}
           </div>
         </div>
 

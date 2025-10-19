@@ -254,7 +254,7 @@ export function BadgesSection() {
       })
 
       if (response.ok) {
-        console.log('Showcase badges saved successfully!')
+        // Showcase badges saved successfully
       } else {
         console.error('Failed to save showcase badges')
       }

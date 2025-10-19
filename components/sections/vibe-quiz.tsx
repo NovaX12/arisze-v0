@@ -101,8 +101,8 @@ export function VibeQuiz({ onComplete }: VibeQuizProps) {
       } else {
         // Quiz complete
         const preferences = {
-          choices: [...selectedChoices, choice],
-          tags: [...selectedChoices, choice].flatMap((c) => c.tags),
+          choices: [...selectedChoices, choice!],
+          tags: [...selectedChoices, choice!].flatMap((c) => c.tags),
           completedAt: new Date().toISOString(),
         }
         onComplete(preferences)

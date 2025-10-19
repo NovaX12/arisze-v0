@@ -63,7 +63,7 @@ export async function PUT(request: NextRequest) {
     
     const db = await getDatabase()
     const result = await db.collection('users').updateOne(
-      { _id: userId },
+      { _id: userId as any },
       { 
         $set: {
           ...userData,

@@ -19,7 +19,6 @@ export function ProfileSection() {
   const [userData, setUserData] = useState({
     name: "",
     email: "",
-    university: "",
     year: "",
     major: "",
     bio: "",
@@ -41,7 +40,6 @@ export function ProfileSection() {
             const newUserData = {
               name: result.user.name || "",
               email: result.user.email || "",
-              university: result.user.university || "",
               year: result.user.year || "",
               major: result.user.major || "",
               bio: result.user.bio || "",
@@ -56,11 +54,10 @@ export function ProfileSection() {
             const newUserData = {
               name: session.user.name || "",
               email: session.user.email || "",
-              university: session.user.university || "",
-              year: session.user.year || "",
-              major: session.user.major || "",
-              bio: session.user.bio || "",
-              avatar: session.user.image || session.user.avatar || "",
+              year: "",
+              major: "",
+              bio: "",
+              avatar: session.user.image || "",
             }
             setUserData(newUserData)
             setEditData(newUserData)
@@ -71,11 +68,10 @@ export function ProfileSection() {
           const newUserData = {
             name: session.user.name || "",
             email: session.user.email || "",
-            university: session.user.university || "",
-            year: session.user.year || "",
-            major: session.user.major || "",
-            bio: session.user.bio || "",
-            avatar: session.user.image || session.user.avatar || "",
+            year: "",
+            major: "",
+            bio: "",
+            avatar: session.user.image || "",
           }
           setUserData(newUserData)
           setEditData(newUserData)
@@ -108,7 +104,7 @@ export function ProfileSection() {
 
   // Calculate profile completion
   const calculateCompletion = () => {
-    const fields = [userData.name, userData.email, userData.university, userData.year, userData.major, userData.bio]
+    const fields = [userData.name, userData.email, userData.year, userData.major, userData.bio]
     const completedFields = fields.filter((field) => field && field.trim() !== "").length
     return Math.round((completedFields / fields.length) * 100)
   }
@@ -122,7 +118,6 @@ export function ProfileSection() {
         },
         body: JSON.stringify({
           name: editData.name,
-          university: editData.university,
           year: editData.year,
           major: editData.major,
           bio: editData.bio,
@@ -232,7 +227,6 @@ export function ProfileSection() {
               user: {
                 ...session?.user,
                 image: base64String,
-                avatar: base64String
               }
             })
             
@@ -399,7 +393,6 @@ export function ProfileSection() {
             )}
 
             <div className="space-y-2 text-muted-foreground">
-              <p data-testid="user-university">{userData.university}</p>
               <p>
                 {userData.year} • {userData.major}
               </p>
@@ -480,17 +473,6 @@ export function ProfileSection() {
                     value={editData.email}
                     onChange={(e) => setEditData({ ...editData, email: e.target.value })}
                     className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="university">University</Label>
-                  <Input
-                    id="university"
-                    value={editData.university}
-                    onChange={(e) => setEditData({ ...editData, university: e.target.value })}
-                    className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
-                    data-testid="university-input"
                   />
                 </div>
               </div>

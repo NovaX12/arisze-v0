@@ -1,3 +1,5 @@
+
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -5,6 +7,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Calendar, Clock, MapPin, Phone, Loader2, CheckCircle, Users, User } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,29 +22,36 @@ interface Event {
   _id?: string
   id?: number
   title: string
-  cafe: string
-  image: string
+  venue?: string
+  cafe?: string
+  image?: string
   date: string
   time?: string
   tags: string[]
   attendees: number
-  maxAttendees: number
-  university: string
+  maxAttendees?: number
   description: string
   contact: string
   address: string
   eventType?: string
-  createdByName?: string
 }
 
 interface GuestInfo {
   name: string
   email: string
+  phone?: string
+  university?: string
+}
+
+interface BookingModalProps {
+  event: Event
+  isOpen: boolean
+  onClose: () => void
 }
 
 const universities = [
   "Vilnius University",
-  "Kaunas University of Technology",
+  "Kaunas University of Technology", 
   "Vytautas Magnus University",
   "Lithuanian University of Health Sciences",
   "Vilnius Gediminas Technical University",
@@ -51,38 +61,15 @@ const universities = [
   "Other"
 ]
 
-interface BookingModalProps {
-  event: Event
-  isOpen: boolean
-  onClose: () => void
-}
-
-const timeSlots = ["18:00", "19:00", "20:00", "21:00"]
-const months = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-]
-
 export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
   const { data: session } = useSession()
   const router = useRouter()
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [selectedTime, setSelectedTime] = useState<string>("")
   const [name, setName] = useState("")
   const [userPhone, setUserPhone] = useState("")
   const [university, setUniversity] = useState("")
   const [hasGuest, setHasGuest] = useState(false)
   const [guestInfo, setGuestInfo] = useState<GuestInfo>({ name: "", email: "" })
+  const [specialRequirements, setSpecialRequirements] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [bookingSuccess, setBookingSuccess] = useState(false)
   const [hasBooked, setHasBooked] = useState(false)
@@ -121,79 +108,58 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
     }
   }, [session, event._id, isOpen])
 
-  const currentDate = new Date()
-  const currentMonth = currentDate.getMonth()
-  const currentYear = currentDate.getFullYear()
-
-  const getDaysInMonth = (month: number, year: number) => {
-    return new Date(year, month + 1, 0).getDate()
-  }
-
-  const getFirstDayOfMonth = (month: number, year: number) => {
-    return new Date(year, month, 1).getDay()
-  }
-
   const handleBooking = async () => {
-    // Check if user is authenticated
-    if (!session?.user?.id) {
-      router.push('/login?callbackUrl=/events')
-      return
-    }
-
-    // Validate required fields
-    if (!userPhone || !university) {
-      toast.error("❌ Missing Information", {
-        description: 'Please provide your phone number and university.',
+    if (!session?.user?.email) {
+      toast.error("❌ Authentication required", {
+        description: "Please sign in to book events.",
       })
       return
     }
 
-    // Validate guest information if bringing a guest
-    if (hasGuest && (!guestInfo.name || !guestInfo.email)) {
-      toast.error("❌ Guest Information Required", {
-        description: 'Please provide guest name and email.',
+    if (!userPhone.trim()) {
+      toast.error("❌ Phone number required", {
+        description: "Please enter your phone number.",
       })
       return
     }
 
-    // Validate phone number format
-    const phoneRegex = /^[+]?[0-9\s\-\(\)]{10,15}$/
-    if (!phoneRegex.test(userPhone)) {
-      toast.error("❌ Invalid Phone Number", {
-        description: 'Please provide a valid phone number.',
+    if (!university.trim()) {
+      toast.error("❌ University required", {
+        description: "Please select your university.",
       })
       return
     }
 
-    // Validate guest email if provided
-    if (hasGuest && guestInfo.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(guestInfo.email)) {
-        toast.error("❌ Invalid Guest Email", {
-          description: 'Please provide a valid guest email address.',
-        })
-        return
-      }
+    if (hasGuest && (!guestInfo.name.trim() || !guestInfo.email.trim())) {
+      toast.error("❌ Guest information required", {
+        description: "Please provide guest name and email.",
+      })
+      return
     }
 
     setIsSubmitting(true)
 
     try {
-      const eventId = event._id || event.id?.toString()
+      const eventId = event._id || event.id
+      
       if (!eventId) {
-        throw new Error('Event ID not found')
+        toast.error("❌ Invalid event", {
+          description: "Event ID is missing. Please try again.",
+        })
+        return
       }
 
       const response = await fetch(`/api/events/${eventId}/book`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userPhone,
+          userPhone: userPhone,
           university,
+          specialRequirements,
           hasGuest,
-          guestInfo: hasGuest ? guestInfo : null,
+          ...(hasGuest && { guestInfo }),
         }),
       })
 
@@ -216,6 +182,7 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
           setUniversity("")
           setHasGuest(false)
           setGuestInfo({ name: "", email: "" })
+          setSpecialRequirements("")
         }, 2000)
       } else {
         console.error('Booking failed:', result.error)
@@ -233,45 +200,7 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
     }
   }
 
-  const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(currentMonth, currentYear)
-    const firstDay = getFirstDayOfMonth(currentMonth, currentYear)
-    const days = []
-
-    // Empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-10" />)
-    }
-
-    // Days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(currentYear, currentMonth, day)
-      const isToday = date.toDateString() === currentDate.toDateString()
-      const isPast = date < currentDate
-      const isSelected = selectedDate?.toDateString() === date.toDateString()
-
-      days.push(
-        <button
-          key={day}
-          onClick={() => !isPast && setSelectedDate(date)}
-          disabled={isPast}
-          className={`h-10 w-10 rounded-full text-sm font-medium transition-all duration-200 ${
-            isPast
-              ? "text-muted-foreground cursor-not-allowed"
-              : isSelected
-                ? "bg-gradient-to-r from-primary to-secondary text-white glow-effect"
-                : isToday
-                  ? "bg-accent/20 text-accent border border-accent"
-                  : "hover:bg-accent/10 hover:text-accent"
-          }`}
-        >
-          {day}
-        </button>,
-      )
-    }
-
-    return days
-  }
+  const isEventFull = event.attendees >= (event.maxAttendees || 50)
 
   return (
     <AnimatePresence>
@@ -286,169 +215,119 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
               className="relative"
             >
               {/* Close Button */}
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={onClose}
-                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
+                className="absolute top-4 right-4 z-10 bg-black/20 hover:bg-black/40 text-white rounded-full"
               >
-                <X className="h-5 w-5" />
-              </button>
+                <X className="h-4 w-4" />
+              </Button>
 
-              {/* Top Section */}
-              <div className="grid md:grid-cols-2 gap-6 p-6">
-                {/* Event Image */}
-                <div className="relative aspect-video rounded-2xl overflow-hidden">
-                  <Image src={event.image || "/placeholder.svg"} alt={event.title} fill className="object-cover" />
-                </div>
-
-                {/* Event Details */}
-                <div className="space-y-4">
-                  <div>
-                    <h2 className="text-2xl font-serif font-bold gradient-text mb-2">{event.title}</h2>
-                    <p className="text-muted-foreground mb-4">{event.description}</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <MapPin className="h-4 w-4 text-accent" />
-                      <div>
-                        <p className="font-medium">{event.cafe}</p>
-                        <p className="text-sm text-muted-foreground">{event.address}</p>
+              {/* Event Header */}
+              <div className="relative h-64 overflow-hidden">
+                <Image
+                  src={event.image || "/placeholder.svg"}
+                  alt={event.title}
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute bottom-6 left-6 text-white">
+                  <h2 className="text-3xl font-bold mb-2">{event.title}</h2>
+                  <div className="flex items-center gap-4 text-sm opacity-90">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4" />
+                      {event.venue || event.cafe || "TBA"}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      {new Date(event.date).toLocaleDateString()}
+                    </div>
+                    {event.time && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {event.time}
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Phone className="h-4 w-4 text-accent" />
-                      <p className="text-sm">{event.contact}</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-4 w-4 text-accent" />
-                      <p className="text-sm">{event.date}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {event.tags && event.tags.length > 0 ? event.tags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="border-accent/30 text-accent">
-                        {tag}
-                      </Badge>
-                    )) : (
-                      <Badge variant="outline" className="border-accent/30 text-accent">
-                        General Event
-                      </Badge>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Bottom Section */}
-              <div className="grid md:grid-cols-2 gap-6 p-6 pt-0">
-                {/* Calendar */}
-                <div>
-                  <h3 className="text-lg font-serif font-semibold mb-4 flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-accent" />
-                    Select Date
-                  </h3>
-                  <div className="glassmorphism rounded-2xl p-4">
-                    <div className="text-center mb-4">
-                      <h4 className="font-semibold">
-                        {months[currentMonth]} {currentYear}
-                      </h4>
+              {/* Content */}
+              <div className="p-6">
+                {/* Event Details */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-purple-400" />
+                      <span className="text-sm text-gray-300">
+                        {event.attendees} / {event.maxAttendees || 50} attendees
+                      </span>
                     </div>
-                    <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground mb-2">
-                      <div>Sun</div>
-                      <div>Mon</div>
-                      <div>Tue</div>
-                      <div>Wed</div>
-                      <div>Thu</div>
-                      <div>Fri</div>
-                      <div>Sat</div>
+                    <div className="flex gap-2">
+                      {event.tags && event.tags.length > 0 ? event.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="bg-purple-500/20 text-purple-300">
+                          {tag}
+                        </Badge>
+                      )) : (
+                        <Badge variant="secondary" className="bg-gray-500/20 text-gray-400">
+                          No tags
+                        </Badge>
+                      )}
                     </div>
-                    <div className="grid grid-cols-7 gap-1">{renderCalendar()}</div>
+                  </div>
+                  <p className="text-gray-300 mb-4">{event.description}</p>
+                  <div className="text-sm text-gray-400">
+                    <p><strong>Address:</strong> {event.address}</p>
+                    <p><strong>Contact:</strong> {event.contact}</p>
                   </div>
                 </div>
 
-                {/* Time Slots & Booking Form */}
-                <div className="space-y-6">
-                  {/* Time Slots */}
-                  <div>
-                    <h3 className="text-lg font-serif font-semibold mb-4 flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-accent" />
-                      Available Times
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      {timeSlots.map((time) => (
-                        <Button
-                          key={time}
-                          variant={selectedTime === time ? "default" : "outline"}
-                          className={`rounded-full transition-all duration-300 ${
-                            selectedTime === time
-                              ? "bg-gradient-to-r from-primary to-secondary glow-effect"
-                              : "border-accent/30 hover:border-accent hover:glow-effect"
-                          }`}
-                          onClick={() => setSelectedTime(time)}
-                        >
-                          {time}
-                        </Button>
-                      ))}
-                    </div>
+                {/* Booking Status */}
+                {checkingBooking ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+                    <span className="ml-2 text-gray-300">Checking booking status...</span>
                   </div>
-
-                  {/* Booking Form */}
-                  <div className="space-y-4">
-                    {checkingBooking ? (
-                      <div className="text-center py-4">
-                        <Loader2 className="h-6 w-6 mx-auto animate-spin mb-2" />
-                        <p className="text-sm text-muted-foreground">Checking booking status...</p>
-                      </div>
-                    ) : hasBooked ? (
-                      <div className="text-center py-6 space-y-3">
-                        <CheckCircle className="h-12 w-12 mx-auto text-green-500" />
-                        <h3 className="text-lg font-semibold text-green-500">Already Booked!</h3>
-                        <p className="text-sm text-muted-foreground">
-                          You have already booked this event. Check your dashboard for details.
-                        </p>
-                        <Button onClick={onClose} variant="outline" className="rounded-full">
-                          Close
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
+                ) : bookingSuccess ? (
+                  <div className="text-center py-8">
+                    <CheckCircle className="h-16 w-16 text-green-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-green-400 mb-2">Booking Confirmed!</h3>
+                    <p className="text-gray-300">You've successfully booked {event.title}</p>
+                  </div>
+                ) : hasBooked ? (
+                  <div className="text-center py-8">
+                    <CheckCircle className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-blue-400 mb-2">Already Booked</h3>
+                    <p className="text-gray-300">You have already booked this event</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Personal Information */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <User className="h-5 w-5" />
+                        Personal Information
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="name" className="text-sm font-medium">
-                            Your Name
-                          </Label>
-                          <Input
-                            id="name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
-                            placeholder="Enter your full name"
-                            disabled={!!session?.user?.name}
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="phone" className="text-sm font-medium">
-                            Phone Number *
-                          </Label>
+                          <Label htmlFor="phone" className="text-gray-300">Phone Number *</Label>
                           <Input
                             id="phone"
                             type="tel"
+                            placeholder="+370 600 12345"
                             value={userPhone}
                             onChange={(e) => setUserPhone(e.target.value)}
-                            className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
-                            placeholder="+370 123 45678"
-                            required
+                            className="bg-black/20 border-gray-600 text-white placeholder-gray-400"
                           />
                         </div>
-
+                        
                         <div>
-                          <Label htmlFor="university" className="text-sm font-medium">
-                            University *
-                          </Label>
-                          <Select value={university} onValueChange={setUniversity} required>
-                            <SelectTrigger className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300">
+                          <Label htmlFor="university" className="text-gray-300">University *</Label>
+                          <Select value={university} onValueChange={setUniversity}>
+                            <SelectTrigger className="bg-black/20 border-gray-600 text-white">
                               <SelectValue placeholder="Select your university" />
                             </SelectTrigger>
                             <SelectContent>
@@ -460,100 +339,127 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
                             </SelectContent>
                           </Select>
                         </div>
+                      </div>
 
-                        <div className="space-y-3">
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id="hasGuest"
-                              checked={hasGuest}
-                              onCheckedChange={(checked) => {
-                                setHasGuest(checked as boolean)
-                                if (!checked) {
-                                  setGuestInfo({ name: "", email: "" })
-                                }
-                              }}
+                      <div>
+                        <Label htmlFor="requirements" className="text-gray-300">Special Requirements</Label>
+                        <Textarea
+                          id="requirements"
+                          placeholder="Any dietary restrictions, accessibility needs, or other requirements..."
+                          value={specialRequirements}
+                          onChange={(e) => setSpecialRequirements(e.target.value)}
+                          className="bg-black/20 border-gray-600 text-white placeholder-gray-400"
+                          rows={3}
+                        />
+                      </div>
+
+                      {/* Guest Information Toggle */}
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="hasGuest"
+                          checked={hasGuest}
+                          onCheckedChange={(checked) => setHasGuest(checked === true)}
+                        />
+                        <Label htmlFor="hasGuest" className="text-gray-300">
+                          I'm bringing a guest
+                        </Label>
+                      </div>
+                    </div>
+
+                    {/* Guest Information */}
+                    {hasGuest && (
+                      <div className="space-y-4 border-t border-gray-600 pt-6">
+                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                          <Users className="h-5 w-5" />
+                          Guest Information
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="guestName" className="text-gray-300">Guest Name *</Label>
+                            <Input
+                              id="guestName"
+                              placeholder="Guest's full name"
+                              value={guestInfo.name}
+                              onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
+                              className="bg-black/20 border-gray-600 text-white placeholder-gray-400"
                             />
-                            <Label htmlFor="hasGuest" className="text-sm font-medium flex items-center gap-2">
-                              <Users className="h-4 w-4" />
-                              I'll bring a guest
-                            </Label>
-                          </div>
-
-                          {hasGuest && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="space-y-3 pl-6 border-l-2 border-accent/30"
-                            >
-                              <div>
-                                <Label htmlFor="guestName" className="text-sm font-medium">
-                                  Guest Name *
-                                </Label>
-                                <Input
-                                  id="guestName"
-                                  value={guestInfo.name}
-                                  onChange={(e) => setGuestInfo(prev => ({ ...prev, name: e.target.value }))}
-                                  className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
-                                  placeholder="Enter guest's full name"
-                                  required={hasGuest}
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="guestEmail" className="text-sm font-medium">
-                                  Guest Email *
-                                </Label>
-                                <Input
-                                  id="guestEmail"
-                                  type="email"
-                                  value={guestInfo.email}
-                                  onChange={(e) => setGuestInfo(prev => ({ ...prev, email: e.target.value }))}
-                                  className="rounded-full border-accent/30 focus:border-accent focus:glow-effect transition-all duration-300"
-                                  placeholder="guest@example.com"
-                                  required={hasGuest}
-                                />
-                              </div>
-                            </motion.div>
-                          )}
-                        </div>
-
-                        <div className="pt-2">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                            <User className="h-4 w-4" />
-                            <span>
-                              Booking for: {hasGuest ? "2 people (you + guest)" : "1 person (you)"}
-                            </span>
                           </div>
                           
-                          <Button
-                            onClick={handleBooking}
-                            disabled={!userPhone || !university || isSubmitting || (hasGuest && (!guestInfo.name || !guestInfo.email))}
-                            className={`w-full rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
-                              bookingSuccess 
-                                ? "bg-green-500 hover:bg-green-600" 
-                                : "bg-gradient-to-r from-primary to-secondary hover:scale-105 hover:glow-effect"
-                            }`}
-                            size="lg"
-                          >
-                            {isSubmitting ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Booking...
-                              </>
-                            ) : bookingSuccess ? (
-                              <>
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Event Booked Successfully!
-                              </>
-                            ) : (
-                              "Confirm Booking"
-                            )}
-                          </Button>
+                          <div>
+                            <Label htmlFor="guestEmail" className="text-gray-300">Guest Email *</Label>
+                            <Input
+                              id="guestEmail"
+                              type="email"
+                              placeholder="guest@example.com"
+                              value={guestInfo.email}
+                              onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
+                              className="bg-black/20 border-gray-600 text-white placeholder-gray-400"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="guestPhone" className="text-gray-300">Guest Phone</Label>
+                            <Input
+                              id="guestPhone"
+                              type="tel"
+                              placeholder="+370 600 12345"
+                              value={guestInfo.phone || ""}
+                              onChange={(e) => setGuestInfo({ ...guestInfo, phone: e.target.value })}
+                              className="bg-black/20 border-gray-600 text-white placeholder-gray-400"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="guestUniversity" className="text-gray-300">Guest University</Label>
+                            <Select 
+                              value={guestInfo.university || ""} 
+                              onValueChange={(value) => setGuestInfo({ ...guestInfo, university: value })}
+                            >
+                              <SelectTrigger className="bg-black/20 border-gray-600 text-white">
+                                <SelectValue placeholder="Select guest's university" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {universities.map((uni) => (
+                                  <SelectItem key={uni} value={uni}>
+                                    {uni}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                      </>
+                      </div>
                     )}
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-6 border-t border-gray-600">
+                      <Button
+                        variant="outline"
+                        onClick={onClose}
+                        className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleBooking}
+                        disabled={isSubmitting || isEventFull}
+                        className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Booking...
+                          </>
+                        ) : isEventFull ? (
+                          "Join Waitlist"
+                        ) : (
+                          "Book Event"
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </motion.div>
           </DialogContent>

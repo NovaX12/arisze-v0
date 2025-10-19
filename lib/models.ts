@@ -2,7 +2,6 @@ export interface User {
   _id?: string
   name: string
   email: string
-  university: string
   year: string
   major: string
   bio: string
@@ -15,14 +14,13 @@ export interface Event {
   _id?: string
   title: string
   description: string
-  cafe: string
+  venue: string
   image: string
   date: Date
   time: string
   tags: string[]
   attendees: number
   maxAttendees: number
-  university: string
   contact: string
   address: string
   createdBy: string // 'system' for admin events, userId for user-generated events
@@ -30,31 +28,6 @@ export interface Event {
   createdByEmail?: string // Email of the user who created the event
   eventType: 'system' | 'user-generated' // Distinguish between system and user events
   isPublic: boolean // Whether the event is visible to all users
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface Cafe {
-  _id?: string
-  name: string
-  thumbnail: string
-  phone: string
-  email: string
-  activities: string[]
-  address: string
-  university: string
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface University {
-  _id?: string
-  name: string
-  thumbnail: string
-  phone: string
-  email: string
-  website: string
-  address: string
   createdAt: Date
   updatedAt: Date
 }
@@ -88,7 +61,6 @@ export interface Booking {
   userName: string
   userEmail: string
   userPhone?: string
-  userUniversity?: string
   userYear?: string
   userMajor?: string
   groupSize: number
@@ -100,41 +72,17 @@ export interface Booking {
   date: Date
   time: string
   status: 'pending' | 'confirmed' | 'cancelled'
-  venueId?: string // For backward compatibility
-  venueName?: string // For backward compatibility
+  specialRequirements?: string
   createdAt: Date
   updatedAt: Date
 }
 
-export interface Badge {
-  _id?: string
-  name: string
-  description: string
-  icon: string
-  color: string
-  requirements: {
-    type: 'events_attended' | 'posts_created' | 'profile_complete' | 'custom'
-    value: number
-  }
-  createdAt: Date
-}
-
-export interface UserBadge {
-  _id?: string
-  userId: string
-  badgeId: string
-  earnedAt: Date
-}
-
-// New interface for event participants tracking
 export interface EventParticipant {
   _id?: string
-  eventId: string
   userId: string
   userName: string
   userEmail: string
   userPhone?: string
-  userUniversity?: string
   groupSize: number
   hasGuest: boolean
   guestInfo?: {
@@ -145,7 +93,38 @@ export interface EventParticipant {
   status: 'registered' | 'attended' | 'no-show'
 }
 
-// Interface for user's created events tracking
+export interface Badge {
+  id: string
+  name: string
+  description: string
+  icon: string
+  color: string
+  criteria: {
+    type: 'events_attended' | 'events_created' | 'profile_completion' | 'social_interaction'
+    threshold: number
+  }
+  rarity: 'common' | 'rare' | 'epic' | 'legendary'
+}
+
+export interface UserBadge {
+  badgeId: string
+  earnedAt: Date
+  progress?: number
+}
+
+export interface UserProfile extends User {
+  earnedBadges?: UserBadge[]
+  showcaseBadges?: string[] // Badge IDs to display on profile
+  eventsAttended?: number
+  eventsCreated?: number
+  connections?: string[] // User IDs
+  preferences?: {
+    notifications: boolean
+    privacy: 'public' | 'private'
+    theme: 'light' | 'dark' | 'system'
+  }
+}
+
 export interface UserCreatedEvent {
   _id?: string
   userId: string
@@ -153,15 +132,13 @@ export interface UserCreatedEvent {
   createdAt: Date
 }
 
-// Enhanced user profile for event management
 export interface UserEventProfile {
   _id?: string
   userId: string
   eventsCreated: number
   eventsAttended: number
-  totalParticipantsHosted: number
-  lastEventCreated?: Date
-  lastEventAttended?: Date
+  totalBookings: number
+  createdAt: Date
   updatedAt: Date
 }
 

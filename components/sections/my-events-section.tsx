@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { motion } from "framer-motion"
-import { Calendar, Clock, MapPin, Users, Eye, X, Loader2, UserPlus, Mail, Phone, University } from "lucide-react"
+import { Calendar, Clock, MapPin, Users, Eye, X, Loader2, UserPlus, Mail, Phone } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,7 +17,8 @@ interface Booking {
   _id: string
   eventId: string
   eventTitle: string
-  eventCafe: string
+  eventCafe?: string
+  eventVenue?: string
   eventDate: string
   eventTime: string
   eventAddress: string
@@ -29,14 +30,48 @@ interface Booking {
   status: string
 }
 
+interface CreatedEvent {
+  _id: string
+  title: string
+  description: string
+  date: string
+  time: string
+  venue?: string
+  cafe?: string
+  address: string
+  tags: string[]
+  attendees: number
+  maxAttendees: number
+  image: string
+  contact: string
+  createdBy: string
+  participants: Array<{
+    _id?: string
+    userId: string
+    userName: string
+    userEmail: string
+    userPhone?: string
+    groupSize: number
+    hasGuest: boolean
+    guestInfo?: {
+      name: string
+      email: string
+    }
+    joinedAt: Date
+    status: 'registered' | 'attended' | 'no-show'
+  }>
+}
+
 export function MyEventsSection() {
   const { data: session } = useSession()
   const [bookings, setBookings] = useState<Booking[]>([])
-  const [createdEvents, setCreatedEvents] = useState<Event[]>([])
+  const [createdEvents, setCreatedEvents] = useState<CreatedEvent[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<CreatedEvent | null>(null)
   const [showParticipants, setShowParticipants] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const fetchUserEvents = async () => {
@@ -58,6 +93,7 @@ export function MyEventsSection() {
         if (createdResponse.ok) {
           const createdData = await createdResponse.json()
           setCreatedEvents(createdData.events || [])
+          setLastUpdated(new Date())
         }
       } catch (error) {
         console.error('Error fetching user events:', error)
@@ -68,6 +104,30 @@ export function MyEventsSection() {
     }
 
     fetchUserEvents()
+
+    // Set up auto-refresh for created events every 60 seconds
+    if (session?.user?.id) {
+      intervalRef.current = setInterval(async () => {
+        try {
+          const createdResponse = await fetch('/api/user/created-events')
+          if (createdResponse.ok) {
+            const createdData = await createdResponse.json()
+            setCreatedEvents(createdData.events || [])
+            setLastUpdated(new Date())
+          }
+        } catch (error) {
+          console.error('Error refreshing created events:', error)
+        }
+      }, 60000) // Refresh every 60 seconds
+    }
+
+    // Cleanup interval on unmount
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
   }, [session])
 
   const cancelBooking = async (booking: Booking) => {
@@ -139,17 +199,19 @@ export function MyEventsSection() {
           transition={{ delay: 0.1 }}
           className="text-muted-foreground"
         >
-          Manage your event bookings and view your event history
+          Track events you've booked as a participant and events you've created as an owner
         </motion.p>
       </div>
 
       <Tabs defaultValue="booked" className="w-full">
         <TabsList className="grid w-full grid-cols-3 glassmorphism">
           <TabsTrigger value="booked" className="data-[state=active]:bg-accent data-[state=active]:text-white">
-            Booked Events ({upcomingBookings.length})
+            My Booked Events ({upcomingBookings.length})
+            <span className="text-xs opacity-75 block">as participant</span>
           </TabsTrigger>
           <TabsTrigger value="created" className="data-[state=active]:bg-accent data-[state=active]:text-white">
             My Created Events ({upcomingCreated.length})
+            <span className="text-xs opacity-75 block">as owner</span>
           </TabsTrigger>
           <TabsTrigger value="past" className="data-[state=active]:bg-accent data-[state=active]:text-white">
             Past Events ({pastBookings.length + pastCreated.length})
@@ -203,12 +265,11 @@ export function MyEventsSection() {
                           </div>
                           <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4" />
-                            <span>{booking.eventCafe}</span>
+                            <span>{booking.eventVenue || booking.eventCafe || 'Venue TBA'}</span>
                           </div>
                         </div>
                         
                         <div className="text-sm text-muted-foreground">
-                          <div>University: {booking.university}</div>
                           <div>Phone: {booking.userPhone}</div>
                           {booking.hasGuest && booking.guestInfo && (
                             <div className="mt-2 p-2 bg-muted/50 rounded">
@@ -279,7 +340,7 @@ export function MyEventsSection() {
                           </div>
                           <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4" />
-                            <span>{event.cafe}</span>
+                            <span>{event.venue || event.cafe || 'Venue TBA'}</span>
                           </div>
                         </div>
                         
@@ -355,7 +416,7 @@ export function MyEventsSection() {
                           </div>
                           <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4" />
-                            <span>{booking.eventCafe}</span>
+                            <span>{booking.eventVenue || booking.eventCafe || 'Venue TBA'}</span>
                           </div>
                         </div>
                       </div>

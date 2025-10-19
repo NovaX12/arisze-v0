@@ -68,22 +68,22 @@ export function Footer() {
                   Events & Activities
                 </Link>
                 <Link
-                  href="/community"
-                  className="block text-sm text-muted-foreground hover:text-accent transition-colors"
-                >
-                  Community
-                </Link>
-                <Link
-                  href="/ai-hub"
-                  className="block text-sm text-muted-foreground hover:text-accent transition-colors"
-                >
-                  AI Hub
-                </Link>
-                <Link
                   href="/dashboard"
                   className="block text-sm text-muted-foreground hover:text-accent transition-colors"
                 >
                   Dashboard
+                </Link>
+                <Link
+                  href="/login"
+                  className="block text-sm text-muted-foreground hover:text-accent transition-colors"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/signup"
+                  className="block text-sm text-muted-foreground hover:text-accent transition-colors"
+                >
+                  Sign Up
                 </Link>
               </div>
             </div>
@@ -110,32 +110,18 @@ export function Footer() {
               </div>
             </div>
 
+            {/* Connect */}
             <div>
-              <h4 className="font-semibold mb-4">University Partners</h4>
+              <h4 className="font-semibold mb-4">Connect</h4>
               <div className="space-y-2">
-                <a
-                  href="https://www.vu.lt"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-sm text-muted-foreground hover:text-accent transition-colors"
-                >
-                  Vilnius University
+                <a href="#" className="block text-sm text-muted-foreground hover:text-accent transition-colors">
+                  Join Our Community
                 </a>
-                <a
-                  href="https://en.ktu.edu"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-sm text-muted-foreground hover:text-accent transition-colors"
-                >
-                  Kaunas University of Technology
+                <a href="#" className="block text-sm text-muted-foreground hover:text-accent transition-colors">
+                  Student Resources
                 </a>
-                <a
-                  href="https://www.vdu.lt/en/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-sm text-muted-foreground hover:text-accent transition-colors"
-                >
-                  Vytautas Magnus University
+                <a href="#" className="block text-sm text-muted-foreground hover:text-accent transition-colors">
+                  Event Guidelines
                 </a>
               </div>
             </div>

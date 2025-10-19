@@ -4,11 +4,11 @@ import { motion } from "framer-motion"
 import { Header } from "@/components/ui/header"
 import { Footer } from "@/components/ui/footer"
 import { useState } from "react"
-import { UniversitiesView } from "@/components/sections/universities-view"
 import { EventsView } from "@/components/sections/events-view"
+import { CreateEventView } from "@/components/sections/create-event-view"
 
 export default function EventsPage() {
-  const [activeView, setActiveView] = useState<"universities" | "events">("events")
+  const [activeView, setActiveView] = useState<"browse" | "create">("browse")
 
   return (
     <motion.div
@@ -28,7 +28,7 @@ export default function EventsPage() {
           >
             <h1 className="text-4xl md:text-5xl font-serif font-bold gradient-text mb-4">Events & Activities</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Discover amazing events happening at universities across Kaunas
+              Book amazing events or create your own for the community
             </p>
           </motion.div>
 
@@ -40,26 +40,26 @@ export default function EventsPage() {
           >
             <div className="glassmorphism rounded-full p-2 flex">
               <button
-                onClick={() => setActiveView("universities")}
+                onClick={() => setActiveView("browse")}
                 className={`px-8 py-3 rounded-full font-medium transition-all duration-300 ${
-                  activeView === "universities"
+                  activeView === "browse"
                     ? "bg-gradient-to-r from-primary to-secondary text-white shadow-lg"
                     : "text-muted-foreground hover:text-white"
                 }`}
-                data-testid="universities-tab"
+                data-testid="browse-events-tab"
               >
-                Universities
+                Book Events
               </button>
               <button
-                onClick={() => setActiveView("events")}
+                onClick={() => setActiveView("create")}
                 className={`px-8 py-3 rounded-full font-medium transition-all duration-300 ${
-                  activeView === "events"
+                  activeView === "create"
                     ? "bg-gradient-to-r from-primary to-secondary text-white shadow-lg"
                     : "text-muted-foreground hover:text-white"
                 }`}
-                data-testid="events-tab"
+                data-testid="create-event-tab"
               >
-                Events
+                Create Event
               </button>
             </div>
           </motion.div>
@@ -70,7 +70,7 @@ export default function EventsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            {activeView === "universities" ? <UniversitiesView /> : <EventsView />}
+            {activeView === "browse" ? <EventsView /> : <CreateEventView />}
           </motion.div>
         </div>
       </main>

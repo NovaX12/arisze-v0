@@ -6,93 +6,99 @@ import { EventCard } from "@/components/ui/event-card"
 import { EventSkeletonCard } from "@/components/ui/event-skeleton-card"
 import { BookingModal } from "@/components/ui/booking-modal"
 import { useEvents } from "@/hooks/use-api"
-import type { EventFilters } from "@/app/events/page"
+import type { EventFilters } from "@/components/sections/events-filters"
 
 // System events (hardcoded for demo purposes)
 const systemEvents = [
   {
-    id: 1,
+    _id: "507f1f77bcf86cd799439011",
     title: "Board Game Night",
-    cafe: "Cozy Corner Cafe",
+    venue: "Community Center",
     image: "/cozy-cafe-with-board-games.jpg",
-    date: "Tonight, 7:00 PM",
+    date: "2025-01-20",
+    time: "19:00",
     tags: ["Board Games", "Social"],
     attendees: 12,
     maxAttendees: 20,
-    university: "Kaunas University of Technology",
     description: "Join us for an evening of strategic fun and social connection!",
     contact: "+370 123 4567",
     address: "Studentų g. 50, Kaunas",
+    eventType: "social"
   },
   {
-    id: 2,
+    _id: "507f1f77bcf86cd799439012",
     title: "Study Group Session",
-    cafe: "Academic Grounds",
+    venue: "Academic Grounds",
     image: "/modern-study-cafe-with-students.jpg",
-    date: "Tomorrow, 2:00 PM",
+    date: "2025-01-21",
+    time: "14:00",
     tags: ["Study Group", "Academic"],
     attendees: 8,
     maxAttendees: 15,
-    university: "Vytautas Magnus University",
     description: "Collaborative study session for upcoming exams.",
     contact: "+370 234 5678",
     address: "V. Putvinskio g. 23, Kaunas",
+    eventType: "academic"
   },
   {
-    id: 3,
+    _id: "507f1f77bcf86cd799439013",
     title: "Live Acoustic Music",
-    cafe: "Melody Lounge",
+    venue: "Melody Lounge",
     image: "/intimate-cafe-with-acoustic-guitar-performance.jpg",
-    date: "Friday, 8:00 PM",
+    date: "2025-01-24",
+    time: "20:00",
     tags: ["Live Music", "Entertainment"],
     attendees: 25,
     maxAttendees: 30,
-    university: "Lithuanian University of Health Sciences",
     description: "Enjoy live acoustic performances by local student artists.",
     contact: "+370 345 6789",
     address: "A. Mickevičiaus g. 9, Kaunas",
+    eventType: "entertainment"
   },
   {
-    id: 4,
+    _id: "507f1f77bcf86cd799439014",
     title: "Art & Coffee Workshop",
-    cafe: "Creative Beans",
+    venue: "Creative Beans",
     image: "/artistic-cafe-with-painting-supplies.jpg",
-    date: "Saturday, 10:00 AM",
+    date: "2025-01-25",
+    time: "10:00",
     tags: ["Art Workshop", "Social"],
     attendees: 6,
     maxAttendees: 12,
-    university: "Kaunas College",
     description: "Express your creativity while enjoying premium coffee.",
     contact: "+370 456 7890",
     address: "Pramonės pr. 20, Kaunas",
+    eventType: "workshop"
   },
   {
-    id: 5,
+    _id: "507f1f77bcf86cd799439015",
     title: "Networking Mixer",
-    cafe: "Business Hub Cafe",
+    venue: "Business Hub",
     image: "/modern-business-networking-event.jpg",
-    date: "Sunday, 6:00 PM",
+    date: "2025-01-26",
+    time: "18:00",
     tags: ["Networking", "Social"],
     attendees: 18,
     maxAttendees: 25,
-    university: "Kaunas University of Technology",
     description: "Connect with fellow students and professionals.",
     contact: "+370 567 8901",
     address: "Gedimino g. 50, Kaunas",
+    eventType: "networking"
   },
   {
-    id: 6,
+    _id: "507f1f77bcf86cd799439016",
     title: "Sports Trivia Night",
-    cafe: "Champions Corner",
+    venue: "Champions Corner",
     image: "/sports-trivia-night-at-cafe.jpg",
-    date: "Monday, 7:30 PM",
+    date: "2025-01-27",
+    time: "19:30",
     tags: ["Sports", "Entertainment"],
     attendees: 14,
     maxAttendees: 20,
-    university: "Vytautas Magnus University",
     description: "Test your sports knowledge in this fun trivia competition.",
     contact: "+370 678 9012",
     address: "Laisvės al. 53, Kaunas",
+    eventType: "entertainment"
   },
 ]
 
@@ -113,13 +119,12 @@ export function EventsGrid({ filters }: EventsGridProps) {
       ...(userGeneratedEvents || []).map((event: any) => ({
         id: event._id,
         title: event.title,
-        cafe: event.cafe,
+        venue: event.venue || event.cafe || "TBA",
         image: event.image || '/default-event-image.jpg',
         date: event.date,
         tags: event.tags || [],
         attendees: event.attendees || 0,
         maxAttendees: event.maxAttendees || 0,
-        university: event.university,
         description: event.description,
         contact: event.contact,
         address: event.address,
@@ -132,24 +137,20 @@ export function EventsGrid({ filters }: EventsGridProps) {
   useEffect(() => {
     let filtered = allEvents
 
-    // Filter by search
+    // Filter by search term
     if (filters.search) {
       filtered = filtered.filter(
         (event) =>
           event.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-          event.cafe.toLowerCase().includes(filters.search.toLowerCase()) ||
-          event.tags.some((tag) => tag.toLowerCase().includes(filters.search.toLowerCase())),
+          event.description.toLowerCase().includes(filters.search.toLowerCase()) ||
+          event.venue.toLowerCase().includes(filters.search.toLowerCase()) ||
+          (event.tags && event.tags.some((tag: string) => tag.toLowerCase().includes(filters.search.toLowerCase()))),
       )
-    }
-
-    // Filter by universities
-    if (filters.universities.length > 0 && !filters.universities.includes("All Universities")) {
-      filtered = filtered.filter((event) => filters.universities.includes(event.university))
     }
 
     // Filter by activity types
     if (filters.activityTypes.length > 0) {
-      filtered = filtered.filter((event) => event.tags.some((tag) => filters.activityTypes.includes(tag)))
+      filtered = filtered.filter((event) => event.tags && event.tags.some((tag: string) => filters.activityTypes.includes(tag)))
     }
 
     setFilteredEvents(filtered)

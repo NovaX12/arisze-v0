@@ -1,4 +1,5 @@
 /// <reference types="cypress" />
+import 'cypress-file-upload'
 
 // Custom commands for Arisze application testing
 
@@ -133,6 +134,15 @@ declare global {
        * Custom command to reset test data
        */
       resetTestData(): Chainable<void>
+      
+      /**
+       * Select file(s) for upload
+       */
+      selectFile(file: string | string[], options?: Partial<{
+        action: 'select' | 'drag-drop' | 'input'
+        force: boolean
+        timeout: number
+      }>): Chainable<JQuery<HTMLElement>>
     }
   }
 }

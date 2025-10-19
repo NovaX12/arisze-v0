@@ -1,43 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
 import { getDatabase } from '@/lib/mongodb'
-import { Event, UserCreatedEvent, UserEventProfile } from '@/lib/models'
 import { ObjectId } from 'mongodb'
+import { Event, UserCreatedEvent, UserEventProfile } from '@/lib/models'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 GET /api/events - Starting request')
     const db = await getDatabase()
-    console.log('✅ Database connection established')
     
-    // Get query parameters for filtering
     const { searchParams } = new URL(request.url)
-    const eventType = searchParams.get('type') // 'all', 'system', 'user-generated'
-    const userId = searchParams.get('userId') // For getting user's created events
+    const type = searchParams.get('type')
+    const userId = searchParams.get('userId')
     
-    let query: any = { isPublic: true } // Only show public events by default
+    let query: any = {}
     
-    if (eventType === 'system') {
-      query.eventType = 'system'
-    } else if (eventType === 'user-generated') {
-      query.eventType = 'user-generated'
-    } else if (userId) {
+    if (type) {
+      query.type = type
+    }
+    
+    if (userId) {
       query.createdBy = userId
     }
     
-    console.log('🔍 Query:', JSON.stringify(query))
+    const events = await db.collection('events').find(query).toArray()
     
-    const events = await db.collection('events')
-      .find(query)
-      .sort({ createdAt: -1 })
-      .toArray()
+    // Manual sorting by createdAt in descending order (newest first)
+    const sortedEvents = events.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime()
+      const dateB = new Date(b.createdAt || 0).getTime()
+      return dateB - dateA
+    })
     
-    console.log('✅ Found events:', events.length)
-    return NextResponse.json(events)
+    return NextResponse.json({ events: sortedEvents })
   } catch (error) {
-    console.error('❌ Error fetching events:', error)
-    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('Error fetching events:', error)
     return NextResponse.json({ error: 'Failed to fetch events' }, { status: 500 })
   }
 }
@@ -98,14 +97,13 @@ export async function POST(request: NextRequest) {
     const newEvent: Omit<Event, '_id'> = {
       title: eventData.title,
       description: eventData.description,
-      cafe: eventData.cafe || 'User Location',
+      venue: eventData.cafe || 'User Location',
       image: eventData.image || '/default-event-image.jpg',
       date: eventDate,
       time: eventData.time,
       tags: eventData.tags || [],
       attendees: 0,
       maxAttendees: parseInt(eventData.maxAttendees),
-      university: eventData.university,
       contact: eventData.contact,
       address: eventData.address,
       createdBy: session.user.id,

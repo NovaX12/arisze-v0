@@ -1,3 +1,5 @@
+import { describe, beforeEach, it } from "node:test"
+
 describe('Dashboard Functionality', () => {
   beforeEach(() => {
     // Clear any existing sessions
@@ -51,7 +53,6 @@ describe('Dashboard Functionality', () => {
     
     // Update all profile information including name
     cy.get('input[id="name"]').clear().type('Updated Test User')
-    cy.get('[data-testid="university-input"]').clear().type('Updated University')
     cy.get('[data-testid="year-input"]').clear().type('2024')
     cy.get('[data-testid="major-input"]').clear().type('Computer Science')
     cy.get('[data-testid="bio-input"]').clear().type('Updated bio information')
@@ -66,7 +67,6 @@ describe('Dashboard Functionality', () => {
     cy.get('[data-testid="user-name"]').should('contain', 'Updated Test User')
     
     // Check that profile information is displayed correctly
-    cy.get('[data-testid="user-university"]').should('contain', 'Updated University')
     cy.get('[data-testid="profile-section"]').should('contain', 'Computer Science')
     cy.get('[data-testid="profile-section"]').should('contain', 'Updated bio information')
   })
@@ -81,7 +81,6 @@ describe('Dashboard Functionality', () => {
     cy.get('[data-testid="edit-profile"]').click()
     
     // Add more profile information
-    cy.get('[data-testid="university-input"]').clear().type('Test University')
     cy.get('[data-testid="year-input"]').clear().type('2024')
     cy.get('[data-testid="major-input"]').clear().type('Computer Science')
     cy.get('[data-testid="bio-input"]').clear().type('This is my bio')
@@ -103,7 +102,7 @@ describe('Dashboard Functionality', () => {
     
     // Simulate file upload
     const fileName = 'test-avatar.jpg'
-    cy.get('input[id="avatar-upload"]').selectFile('cypress/fixtures/' + fileName, { force: true })
+    cy.get('input[id="avatar-upload"]').attachFile(fileName, { force: true })
     
     // Wait for upload to complete
     cy.wait(3000)
@@ -117,7 +116,7 @@ describe('Dashboard Functionality', () => {
     
     // Upload avatar
     const fileName = 'test-avatar.jpg'
-    cy.get('input[id="avatar-upload"]').selectFile('cypress/fixtures/' + fileName, { force: true })
+    cy.get('input[id="avatar-upload"]').attachFile(fileName, { force: true })
     cy.wait(3000)
     
     // Navigate to another page to check navbar
@@ -138,7 +137,7 @@ describe('Dashboard Functionality', () => {
     
     // Edit profile
     cy.get('[data-testid="edit-profile"]').click()
-    cy.get('[data-testid="university-input"]').clear().type('Toast Test University')
+    cy.get('[data-testid="year-input"]').clear().type('2024')
     cy.get('[data-testid="profile-update-button"]').click()
     
     // Wait for toast to appear and check for success message

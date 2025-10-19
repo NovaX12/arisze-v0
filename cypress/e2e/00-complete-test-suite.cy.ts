@@ -1,3 +1,5 @@
+import { beforeEach, describe, it } from "node:test"
+
 describe('Complete Arisze Application Test Suite', () => {
   beforeEach(() => {
     // Clear any existing sessions
@@ -56,7 +58,6 @@ describe('Complete Arisze Application Test Suite', () => {
     cy.url().should('include', '/dashboard')
     
     // Step 8: Update profile
-    cy.get('[data-testid="university-input"]').clear().type('Test University')
     cy.get('[data-testid="year-input"]').clear().type('2024')
     cy.get('[data-testid="major-input"]').clear().type('Computer Science')
     cy.get('[data-testid="profile-update-button"]').click()

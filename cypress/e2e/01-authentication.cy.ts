@@ -1,3 +1,5 @@
+import { describe, beforeEach, it } from "node:test"
+
 describe('Authentication Flow', () => {
   beforeEach(() => {
     // Clear any existing sessions
@@ -66,7 +68,6 @@ describe('Authentication Flow', () => {
     cy.get('input[data-testid="signup-email"]').type('cypress@arisze.com')
     cy.get('input[data-testid="signup-password"]').type('CypressTest123!')
     cy.get('input[data-testid="signup-confirm-password"]').type('CypressTest123!')
-    cy.get('input[data-testid="signup-university"]').type('Test University')
     
     // Submit the form
     cy.get('button[type="submit"]').click()

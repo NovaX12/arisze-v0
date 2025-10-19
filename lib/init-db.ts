@@ -4,76 +4,7 @@ export async function initializeDatabase() {
   try {
     const db = await getDatabase()
     
-    // Initialize universities
-    const universities = [
-      {
-        name: "Vilnius University",
-        thumbnail: "https://www.knf.vu.lt/modules/mod_news_pro_gk5/cache/default/defaultnsp-205.png",
-        phone: "+370-5-2687001",
-        email: "info@vu.lt",
-        website: "https://www.vu.lt",
-        address: "Universiteto g. 3, 01513 Vilnius, Lithuania",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        name: "Kaunas University of Technology",
-        thumbnail: "https://ktu.edu/wp-content/uploads/2017/06/ktu_1.png",
-        phone: "+370 (614) 20055",
-        email: "klausk@ktu.lt",
-        website: "https://en.ktu.edu",
-        address: "K. Donelaičio g. 73, 44249 Kaunas, Lithuania",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        name: "Vytautas Magnus University",
-        thumbnail: "https://www.vdu.lt/wp-content/uploads/2023/09/VDU_Jono-Petronio-nuotr.jpg",
-        phone: "+370 37 751 175",
-        email: "studentas@vdu.lt",
-        website: "https://www.vdu.lt/en/",
-        address: "K. Donelaičio g. 58, 44248 Kaunas, Lithuania",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ]
 
-    // Initialize cafes
-    const cafes = [
-      {
-        name: "CAFFEINE LT",
-        thumbnail: "https://lh3.googleusercontent.com/p/AF1QipOxqxBEYc9XUl3TzaGeHVrTWl40Nwy0xM37cJ6Y=s680-w680-h510-rw",
-        phone: "+370 699 77541",
-        email: "bendras@reitanconvenience.lt",
-        activities: ["Board & Card Games", "Uno", "Jenga", "Social Games"],
-        address: "Laisvės al. 60, 44309 Kaunas, Lithuania",
-        university: "Kaunas University of Technology",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        name: "Vero Cafe",
-        thumbnail: "https://lh3.googleusercontent.com/gps-cs-s/AC9h4npJs8E1vKciv15otVzZD05-FiyplJLfTm2c3Ra8A3KgrxDM8NAh8MezPsSNaW1PxT_IF4vEYx1f7ezTwk08wM-JjiEPggXpJwZb_YILqIN-CzHSZBo6tDO6yoB3GHhmAGasf=s294-w294-h220-n-k-no",
-        phone: "+370 618 55401",
-        email: "info@verocafe.lt",
-        activities: ["Pictionary", "Trivia", "Creative Sessions", "Drawing"],
-        address: "Laisvės al. 36, 44309 Kaunas, Lithuania",
-        university: "Kaunas University of Technology",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        name: "Caif Cafe",
-        thumbnail: "https://lh3.googleusercontent.com/gps-cs-s/AC9h4nq1jRXzOlWpWXl492ln18WWtwwuaZA0UZtLM-dTpnRqX1JIZ94msHMGXTl1MzFJtECsMDgspo-vTpwnNf42vLrihST9notX30LKYxJwN6-TzHIhm8GmQ78BZJ3dNTwMwCAQPefldw=s294-w294-h220-n-k-no",
-        phone: "+370 699 02640",
-        email: "info@caifcafe.lt",
-        activities: ["Simple Puzzles", "Crosswords", "Sudoku", "Story Writing"],
-        address: "K. Donelaičio g. 73, 44249 Kaunas, Lithuania",
-        university: "Kaunas University of Technology",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ]
 
     // Initialize sample events
     const events = [
@@ -196,12 +127,10 @@ export async function initializeDatabase() {
     ]
 
     // Insert data into collections
-    await db.collection('universities').insertMany(universities)
-    await db.collection('cafes').insertMany(cafes)
     await db.collection('events').insertMany(events)
     await db.collection('badges').insertMany(badges)
 
-    console.log('Database initialized successfully!')
+    // Database initialization completed successfully
     return { success: true }
   } catch (error) {
     console.error('Error initializing database:', error)

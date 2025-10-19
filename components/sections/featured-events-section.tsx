@@ -39,7 +39,7 @@ export function FeaturedEventsSection() {
     )
   }
 
-  const featuredEvents = events?.slice(0, 4) || []
+  const featuredEvents = events?.events?.slice(0, 5) || []
 
   return (
     <section className="py-20 px-4">
@@ -53,7 +53,7 @@ export function FeaturedEventsSection() {
         >
           <h2 className="text-3xl md:text-4xl font-serif font-bold gradient-text mb-4">Happening This Week</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Don't miss out on these exciting events happening around Kaunas universities
+            Don't miss out on these exciting events happening around Kaunas
           </p>
         </motion.div>
 
@@ -71,15 +71,14 @@ export function FeaturedEventsSection() {
               >
                 <EventCard 
                   event={{
-                    id: event._id || '',
+                    _id: event._id || '',
                     title: event.title,
-                    cafe: event.cafe,
+                    venue: event.venue || "TBA",
                     image: event.image,
                     date: `${event.date} ${event.time}`,
                     tags: event.tags,
                     attendees: event.attendees,
                     maxAttendees: event.maxAttendees,
-                    university: event.university,
                     description: event.description,
                     contact: event.contact,
                     address: event.address

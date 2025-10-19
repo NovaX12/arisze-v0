@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
 import { getDatabase } from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -58,7 +60,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       userName: booking.userName,
       userEmail: booking.userEmail,
       userPhone: booking.userPhone,
-      userUniversity: booking.userUniversity || booking.university,
       groupSize: booking.groupSize || 1,
       hasGuest: booking.hasGuest || false,
       guestInfo: booking.guestInfo || null,
@@ -73,7 +74,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       confirmedParticipants: participantsWithDetails.filter(p => p.status === 'confirmed').length,
       participantsWithGuests: participantsWithDetails.filter(p => p.hasGuest).length,
       totalAttendees: participantsWithDetails.reduce((sum, p) => sum + p.groupSize + (p.hasGuest ? 1 : 0), 0),
-      universities: [...new Set(participantsWithDetails.map(p => p.userUniversity).filter(Boolean))],
       recentJoins: participantsWithDetails.filter(p => {
         const joinDate = new Date(p.joinedAt)
         const threeDaysAgo = new Date()

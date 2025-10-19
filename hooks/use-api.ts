@@ -64,13 +64,7 @@ export function useEvents(refreshKey?: number) {
   return { data, loading, error }
 }
 
-export function useUniversities() {
-  return useApi('/api/universities')
-}
 
-export function useCafes() {
-  return useApi('/api/cafes')
-}
 
 export function usePosts() {
   return useApi('/api/posts')
