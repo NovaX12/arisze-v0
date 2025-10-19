@@ -43,67 +43,88 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔵 POST /api/events - Event creation request received')
+    
     // Get session to verify user is authenticated
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.id) {
+      console.error('❌ Unauthorized: No session found')
       return NextResponse.json(
         { error: 'Unauthorized - Please log in to create events' },
         { status: 401 }
       )
     }
 
+    console.log('✅ User authenticated:', session.user.email)
+
     const eventData = await request.json()
+    
+    // Log incoming data for debugging
+    console.log('📝 Creating event with data:', JSON.stringify(eventData, null, 2))
     
     // Validation for required fields
     const requiredFields = ['title', 'description', 'date', 'time', 'maxAttendees', 'university', 'contact', 'address']
     const missingFields = requiredFields.filter(field => !eventData[field])
     
     if (missingFields.length > 0) {
+      console.error('❌ Missing fields:', missingFields)
       return NextResponse.json(
         { error: `Missing required fields: ${missingFields.join(', ')}` },
         { status: 400 }
       )
     }
 
-    // Validate cafe field (optional but should be string if provided)
-    if (eventData.cafe && typeof eventData.cafe !== 'string') {
+    // Accept both 'cafe' and 'venue' field names for backward compatibility
+    const venueName = eventData.cafe || eventData.venue
+    
+    if (!venueName || typeof venueName !== 'string') {
+      console.error('❌ Invalid venue name:', venueName)
       return NextResponse.json(
-        { error: 'Cafe must be a valid string' },
+        { error: 'Venue/cafe name is required and must be a valid string' },
         { status: 400 }
       )
     }
 
     // Validate maxAttendees
-    if (eventData.maxAttendees < 1 || eventData.maxAttendees > 100) {
+    const maxAttendeesNum = parseInt(eventData.maxAttendees)
+    if (isNaN(maxAttendeesNum) || maxAttendeesNum < 1 || maxAttendeesNum > 100) {
+      console.error('❌ Invalid maxAttendees:', eventData.maxAttendees)
       return NextResponse.json(
-        { error: 'Maximum attendees must be between 1 and 100' },
+        { error: 'Maximum attendees must be a number between 1 and 100' },
         { status: 400 }
       )
     }
 
     // Validate date is in the future
     const eventDate = new Date(eventData.date)
-    if (eventDate <= new Date()) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Reset time to start of day for fair comparison
+    
+    if (eventDate < today) {
+      console.error('❌ Event date in past:', eventDate)
       return NextResponse.json(
-        { error: 'Event date must be in the future' },
+        { error: 'Event date must be today or in the future' },
         { status: 400 }
       )
     }
     
+    console.log('🔌 Connecting to database...')
     const db = await getDatabase()
+    console.log('✅ Database connected')
     
     // Create the event with user information
     const newEvent: Omit<Event, '_id'> = {
       title: eventData.title,
       description: eventData.description,
-      venue: eventData.cafe || 'User Location',
+      venue: venueName,
       image: eventData.image || '/default-event-image.jpg',
       date: eventDate,
       time: eventData.time,
       tags: eventData.tags || [],
       attendees: 0,
-      maxAttendees: parseInt(eventData.maxAttendees),
+      maxAttendees: maxAttendeesNum,
+      university: eventData.university,
       contact: eventData.contact,
       address: eventData.address,
       createdBy: session.user.id,
@@ -115,7 +136,11 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date()
     }
     
+    console.log('✅ Event object created:', JSON.stringify(newEvent, null, 2))
+    
+    console.log('💾 Inserting event into database...')
     const result = await db.collection('events').insertOne(newEvent)
+    console.log('✅ Event inserted with ID:', result.insertedId)
     
     // Track user's created event
     const userCreatedEvent: Omit<UserCreatedEvent, '_id'> = {
@@ -125,6 +150,7 @@ export async function POST(request: NextRequest) {
     }
     
     await db.collection('userCreatedEvents').insertOne(userCreatedEvent)
+    console.log('✅ User event tracking created')
     
     // Update user's event profile stats
     await db.collection('userEventProfiles').updateOne(
@@ -138,6 +164,7 @@ export async function POST(request: NextRequest) {
       },
       { upsert: true }
     )
+    console.log('✅ User event profile updated')
     
     return NextResponse.json({ 
       success: true, 
@@ -146,8 +173,12 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
     
   } catch (error) {
-    console.error('Error creating event:', error)
-    return NextResponse.json({ error: 'Failed to create event' }, { status: 500 })
+    console.error('❌ Error creating event:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create event'
+    return NextResponse.json({ 
+      error: 'Failed to create event', 
+      details: errorMessage 
+    }, { status: 500 })
   }
 }
 

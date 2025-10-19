@@ -76,17 +76,40 @@ export function CreateEventView() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('🔵 [EVENT CREATION] Form submission started')
+    console.log('📋 [EVENT CREATION] Current form data:', formData)
+    console.log('🏷️ [EVENT CREATION] Selected tags:', selectedTags)
+    
     if (!session) {
+      console.error('❌ [EVENT CREATION] No session found')
       toast.error("Please log in to create an event")
       return
     }
 
+    console.log('✅ [EVENT CREATION] Session validated:', {
+      userId: session.user?.id,
+      userEmail: session.user?.email,
+      userName: session.user?.name
+    })
+
     // Validate all required fields per API requirements
     if (!formData.title || !formData.description || !formData.date || !formData.time || 
         !formData.venue || !formData.university || !formData.contact || !formData.address) {
+      console.error('❌ [EVENT CREATION] Validation failed - missing fields:', {
+        title: !!formData.title,
+        description: !!formData.description,
+        date: !!formData.date,
+        time: !!formData.time,
+        venue: !!formData.venue,
+        university: !!formData.university,
+        contact: !!formData.contact,
+        address: !!formData.address
+      })
       toast.error("Please fill in all required fields (title, description, date, time, venue, university, contact, and address)")
       return
     }
+
+    console.log('✅ [EVENT CREATION] All required fields validated')
 
     setIsSubmitting(true)
 
@@ -97,6 +120,7 @@ export function CreateEventView() {
         date: formData.date,
         time: formData.time,
         cafe: formData.venue, // API expects 'cafe' field, not 'venue'
+        venue: formData.venue, // Also send 'venue' for compatibility
         university: formData.university,
         contact: formData.contact,
         address: formData.address,
@@ -106,6 +130,9 @@ export function CreateEventView() {
         isPublic: true
       }
 
+      console.log('📦 [EVENT CREATION] Prepared event data:', eventData)
+      console.log('📤 [EVENT CREATION] Sending POST request to /api/events')
+
       const response = await fetch("/api/events", {
         method: "POST",
         headers: {
@@ -114,18 +141,42 @@ export function CreateEventView() {
         body: JSON.stringify(eventData),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to create event")
+      console.log('📥 [EVENT CREATION] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const responseText = await response.text()
+      console.log('📄 [EVENT CREATION] Raw response text:', responseText)
+
+      let result
+      try {
+        result = JSON.parse(responseText)
+        console.log('📋 [EVENT CREATION] Parsed response data:', result)
+      } catch (parseError) {
+        console.error('❌ [EVENT CREATION] Failed to parse response JSON:', parseError)
+        console.error('❌ [EVENT CREATION] Response was:', responseText)
+        throw new Error('Invalid JSON response from server')
       }
 
-      const result = await response.json()
+      if (!response.ok) {
+        console.error('❌ [EVENT CREATION] Server returned error:', {
+          status: response.status,
+          error: result.error,
+          details: result.details
+        })
+        throw new Error(result.error || result.details || "Failed to create event")
+      }
       
+      console.log('✅ [EVENT CREATION] Event created successfully!', result)
       setIsSuccess(true)
       toast.success("Event created successfully!")
       
       // Reset form after success
       setTimeout(() => {
+        console.log('🔄 [EVENT CREATION] Resetting form')
         setFormData({
           title: "",
           description: "",
@@ -143,10 +194,17 @@ export function CreateEventView() {
       }, 2000)
 
     } catch (error) {
-      console.error("Error creating event:", error)
+      console.error('❌ [EVENT CREATION] Error caught:', error)
+      console.error('❌ [EVENT CREATION] Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        type: typeof error,
+        error: error
+      })
       toast.error(error instanceof Error ? error.message : "Failed to create event")
     } finally {
       setIsSubmitting(false)
+      console.log('🏁 [EVENT CREATION] Form submission completed')
     }
   }
 

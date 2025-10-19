@@ -21,6 +21,7 @@ export interface Event {
   tags: string[]
   attendees: number
   maxAttendees: number
+  university: string
   contact: string
   address: string
   createdBy: string // 'system' for admin events, userId for user-generated events
