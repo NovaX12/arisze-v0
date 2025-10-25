@@ -149,6 +149,32 @@ export function MyEventsSection() {
     }
   }
 
+  const cancelEvent = async (event: CreatedEvent) => {
+    // Confirmation dialog
+    if (!confirm(`Are you sure you want to cancel "${event.title}"?\n\nThis will delete the event and all ${event.participants.length} booking(s). This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/events/${event._id}`, {
+        method: 'DELETE',
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        // Remove event from local state
+        setCreatedEvents(createdEvents.filter(e => e._id !== event._id))
+        toast.success(`Event cancelled successfully! ${result.deletedBookings} booking(s) removed.`)
+      } else {
+        toast.error(result.error || 'Failed to cancel event')
+      }
+    } catch (error) {
+      console.error('Error cancelling event:', error)
+      toast.error('Error cancelling event')
+    }
+  }
+
   const viewParticipants = (event: CreatedEvent) => {
     setSelectedEvent(event)
     setShowParticipants(true)
@@ -361,6 +387,15 @@ export function MyEventsSection() {
                         >
                           <UserPlus className="h-4 w-4 mr-2" />
                           View Participants ({event.participants.length})
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="rounded-full"
+                          onClick={() => cancelEvent(event)}
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Cancel Event
                         </Button>
                       </div>
                     </div>

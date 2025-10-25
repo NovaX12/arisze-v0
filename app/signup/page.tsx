@@ -91,7 +91,12 @@ export default function SignupPage() {
           router.push('/login')
         }, 2000)
       } else {
-        setError(data.message || 'Registration failed')
+        // Handle specific error messages
+        if (response.status === 409) {
+          setError(data.error || 'This email is already registered. Please login instead.')
+        } else {
+          setError(data.error || data.message || 'Registration failed')
+        }
       }
     } catch (error) {
       setError('Network error. Please try again.')

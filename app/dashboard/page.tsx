@@ -24,19 +24,18 @@ export default function DashboardPage() {
     }
   }, [status, router])
 
-  if (status === "loading") {
+  // Show loading state while checking authentication
+  if (status === "loading" || status === "unauthenticated") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your dashboard...</p>
+          <p className="text-muted-foreground">
+            {status === "loading" ? "Loading your dashboard..." : "Redirecting to login..."}
+          </p>
         </div>
       </div>
     )
-  }
-
-  if (status === "unauthenticated") {
-    return null // Will redirect
   }
 
   const renderContent = () => {

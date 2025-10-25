@@ -34,10 +34,17 @@ if (process.env.NODE_ENV === 'development') {
 
 export default clientPromise
 
-// Get database instance
+// Get database instance with connection verification
 export async function getDatabase(): Promise<Db> {
-  const client = await clientPromise
-  return client.db('arisze')
+  try {
+    const client = await clientPromise
+    // Verify connection is alive with ping
+    await client.db('admin').command({ ping: 1 })
+    return client.db('arisze')
+  } catch (error) {
+    console.error('❌ MongoDB Connection Failed:', error)
+    throw new Error(`Database connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
 }
 
 // Legacy function for backward compatibility

@@ -120,56 +120,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  .glassmorphism {
-    background: var(--glassmorphism-bg);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  .glow-effect {
-    box-shadow: 0 0 20px var(--glow-color);
-  }
-  .gradient-text {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  .gradient-border {
-    border-image: var(--gradient-primary) 1;
-  }
-  /* Added scrollbar hiding utility */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Added symmetric wave animations for footer */
-  .wave-animation-1 {
-    animation: wave-flow-1 8s ease-in-out infinite;
-    transform-origin: center;
-  }
-
-  .wave-animation-2 {
-    animation: wave-flow-2 12s ease-in-out infinite;
-    transform-origin: center;
-  }
-
-  .wave-animation-3 {
-    animation: wave-flow-3 10s ease-in-out infinite;
-    transform-origin: center;
-  }
-}
-
+/* Removed heavy starfield animations to keep UI elegant and accessible. */
 /* Added keyframe animations for smooth, symmetric wave motion */
 @keyframes wave-flow-1 {
   0%,
@@ -229,4 +180,134 @@
     transform: translateX(5px) scaleY(0.95);
     opacity: 0.55;
   }
+}
+
+/* AI Hub Animations */
+@keyframes ai-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.4), 0 0 20px rgba(168, 85, 247, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.6), 0 0 30px rgba(168, 85, 247, 0.4);
+  }
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    opacity: 0.7;
+    transform: scale(1.1) rotate(90deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(180deg);
+  }
+  75% {
+    opacity: 0.7;
+    transform: scale(1.1) rotate(270deg);
+  }
+}
+
+.ai-hub-icon {
+  animation: sparkle 3s ease-in-out infinite;
+}
+
+.ai-hub-button:hover .ai-hub-icon {
+  animation: sparkle 1s ease-in-out infinite;
+}
+
+/* Space Theme Animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  50% {
+    transform: translateY(-20px) translateX(10px);
+  }
+}
+
+@keyframes float-delayed {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  50% {
+    transform: translateY(30px) translateX(-15px);
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-15px) translateX(15px) scale(1.05);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(162, 89, 255, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 30px rgba(236, 72, 153, 0.7));
+  }
+}
+
+/* Utility classes */
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 8s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 10s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 3s ease-in-out infinite;
 }

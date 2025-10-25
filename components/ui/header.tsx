@@ -1,12 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Moon, Sun, Menu, X, User, LogOut, HelpCircle } from "lucide-react"
+import { Moon, Sun, Menu, X, User, LogOut, HelpCircle, Sparkles, MessageSquare, Gamepad2, Brain } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 
 export function Header() {
   const { theme, setTheme } = useTheme()
@@ -16,9 +17,13 @@ export function Header() {
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Events & Activities", href: "/events" },
+    { name: "AI Hub", href: "/ai-hub" },
     { name: "Dashboard", href: "/dashboard" },
     { name: "Contact", href: "/contact" },
   ]
+
+  // Placeholder for online users count (will be dynamic later)
+  const [onlineCount] = useState(12)
 
   return (
     <header className="sticky top-4 z-50 mx-4">
@@ -48,6 +53,27 @@ export function Header() {
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
+            {/* AI Hub Icon with online count - Only show when logged in */}
+            {session && onlineCount > 0 && (
+              <Link href="/ai-hub">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative rounded-full transition-all duration-200 group"
+                  data-testid="synapse-button"
+                >
+                  <div className="relative">
+                    <Badge 
+                      className="relative h-6 min-w-6 flex items-center justify-center text-xs bg-primary text-white border-0 px-2"
+                    >
+                      {onlineCount} online
+                    </Badge>
+                  </div>
+                  <span className="sr-only">AI Hub Online Users</span>
+                </Button>
+              </Link>
+            )}
+
             {/* Theme Toggle */}
             <Button
               variant="ghost"

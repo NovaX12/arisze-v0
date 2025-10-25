@@ -42,6 +42,7 @@ const nextConfig = {
   },
   experimental: {
     esmExternals: 'loose',
+    instrumentationHook: true,
   },
   output: 'standalone',
   trailingSlash: false,

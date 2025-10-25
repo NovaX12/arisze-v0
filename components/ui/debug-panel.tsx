@@ -16,7 +16,12 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
-  RefreshCw
+  RefreshCw,
+  Activity,
+  Calendar,
+  UserCircle,
+  Camera,
+  Trash2
 } from "lucide-react"
 
 interface DebugLog {
@@ -24,11 +29,24 @@ interface DebugLog {
   type: 'info' | 'success' | 'error' | 'warning'
   message: string
   details?: any
+  category?: 'profile' | 'event' | 'booking' | 'auth' | 'system'
 }
 
 interface DebugPanelProps {
   isOpen?: boolean
   onToggle?: () => void
+}
+
+// Global debug logger that can be accessed from anywhere
+export const globalDebugLog = {
+  log: (type: DebugLog['type'], message: string, details?: any, category?: DebugLog['category']) => {
+    // This will be set by the DebugPanel component
+    if (typeof window !== 'undefined' && (window as any).__debugPanelAddLog) {
+      (window as any).__debugPanelAddLog(type, message, details, category)
+    }
+    // Also log to console for development
+    console.log(`[DEBUG ${category?.toUpperCase() || 'SYSTEM'}]`, message, details)
+  }
 }
 
 export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps) {
@@ -37,19 +55,83 @@ export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps
   const [dbStatus, setDbStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown')
   const [sessionStatus, setSessionStatus] = useState<'unknown' | 'authenticated' | 'unauthenticated'>('unknown')
   const [apiHealth, setApiHealth] = useState<'unknown' | 'healthy' | 'unhealthy'>('unknown')
+  const [filterCategory, setFilterCategory] = useState<DebugLog['category'] | 'all'>('all')
   
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen
   const handleToggle = onToggle || (() => setInternalIsOpen(!internalIsOpen))
 
-  const addLog = (type: DebugLog['type'], message: string, details?: any) => {
+  const addLog = (type: DebugLog['type'], message: string, details?: any, category?: DebugLog['category']) => {
     const newLog: DebugLog = {
       timestamp: new Date().toLocaleTimeString(),
       type,
       message,
-      details
+      details,
+      category: category || 'system'
     }
-    setLogs(prev => [newLog, ...prev].slice(0, 50)) // Keep last 50 logs
+    setLogs(prev => [newLog, ...prev].slice(0, 100)) // Keep last 100 logs
   }
+
+  // Expose addLog to global scope for tracking from other components
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__debugPanelAddLog = addLog
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).__debugPanelAddLog
+      }
+    }
+  }, [])
+
+  // Intercept console logs
+  useEffect(() => {
+    const originalConsoleLog = console.log
+    const originalConsoleError = console.error
+    const originalConsoleWarn = console.warn
+
+    console.log = (...args) => {
+      originalConsoleLog(...args)
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+      ).join(' ')
+      
+      // Detect category from message
+      let category: DebugLog['category'] = 'system'
+      if (message.includes('Profile') || message.includes('profile') || message.includes('👤')) {
+        category = 'profile'
+      } else if (message.includes('Event') || message.includes('event') || message.includes('📅')) {
+        category = 'event'
+      } else if (message.includes('Booking') || message.includes('booking') || message.includes('🎫')) {
+        category = 'booking'
+      } else if (message.includes('Session') || message.includes('Auth') || message.includes('🔐')) {
+        category = 'auth'
+      }
+      
+      addLog('info', message.substring(0, 200), args.length > 1 ? args[1] : undefined, category)
+    }
+
+    console.error = (...args) => {
+      originalConsoleError(...args)
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+      ).join(' ')
+      addLog('error', message.substring(0, 200), args.length > 1 ? args[1] : undefined)
+    }
+
+    console.warn = (...args) => {
+      originalConsoleWarn(...args)
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+      ).join(' ')
+      addLog('warning', message.substring(0, 200), args.length > 1 ? args[1] : undefined)
+    }
+
+    return () => {
+      console.log = originalConsoleLog
+      console.error = originalConsoleError
+      console.warn = originalConsoleWarn
+    }
+  }, [])
 
   // Check database connection
   const checkDatabase = async () => {
@@ -166,14 +248,90 @@ export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps
     }
   }
 
+  // Test profile update API
+  const testProfileUpdate = async () => {
+    addLog('info', '🧪 Testing profile update API...', undefined, 'profile')
+    try {
+      const response = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bio: 'Debug test bio - ' + new Date().toISOString()
+        }),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        addLog('success', '✅ Profile update API test PASSED', data, 'profile')
+      } else {
+        addLog('error', `❌ Profile update API test FAILED (${response.status})`, data, 'profile')
+      }
+    } catch (error: any) {
+      addLog('error', '❌ Profile update API test ERROR', error, 'profile')
+    }
+  }
+
+  // Test avatar upload capability
+  const testAvatarUpload = async () => {
+    addLog('info', '🧪 Testing avatar upload API...', undefined, 'profile')
+    try {
+      const response = await fetch('/api/users/avatar-upload', {
+        method: 'GET',
+      })
+      const data = await response.json()
+      if (response.ok) {
+        addLog('success', '✅ Avatar upload API is accessible', data, 'profile')
+      } else {
+        addLog('error', `❌ Avatar upload API test FAILED (${response.status})`, data, 'profile')
+      }
+    } catch (error: any) {
+      addLog('error', '❌ Avatar upload API test ERROR', error, 'profile')
+    }
+  }
+
+  // Test booking system
+  const testBookingSystem = async () => {
+    addLog('info', '🧪 Testing booking system APIs...', undefined, 'booking')
+    try {
+      const response = await fetch('/api/user/bookings')
+      const data = await response.json()
+      if (response.ok) {
+        addLog('success', '✅ Booking system API accessible', { bookings: data.bookings?.length || 0 }, 'booking')
+      } else {
+        addLog('error', `❌ Booking system API FAILED (${response.status})`, data, 'booking')
+      }
+    } catch (error: any) {
+      addLog('error', '❌ Booking system API ERROR', error, 'booking')
+    }
+  }
+
+  // Test event deletion
+  const testEventManagement = async () => {
+    addLog('info', '🧪 Testing event management APIs...', undefined, 'event')
+    try {
+      const response = await fetch('/api/user/created-events')
+      const data = await response.json()
+      if (response.ok) {
+        addLog('success', '✅ Event management API accessible', { events: data.events?.length || 0 }, 'event')
+      } else {
+        addLog('error', `❌ Event management API FAILED (${response.status})`, data, 'event')
+      }
+    } catch (error: any) {
+      addLog('error', '❌ Event management API ERROR', error, 'event')
+    }
+  }
+
   // Run all checks
   const runAllChecks = async () => {
-    addLog('info', '🔄 Running all diagnostic checks...')
+    addLog('info', '🔄 Running all diagnostic checks...', undefined, 'system')
     setLogs([]) // Clear previous logs
     await checkSession()
     await checkDatabase()
     await checkApiHealth()
-    addLog('success', '✅ All diagnostic checks completed')
+    await testProfileUpdate()
+    await testAvatarUpload()
+    await testBookingSystem()
+    await testEventManagement()
+    addLog('success', '✅ All diagnostic checks completed', undefined, 'system')
   }
 
   // Auto-run checks on mount
@@ -185,12 +343,17 @@ export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps
 
   const copyLogs = () => {
     const logsText = logs.map(log => 
-      `[${log.timestamp}] ${log.type.toUpperCase()}: ${log.message}${log.details ? '\n' + JSON.stringify(log.details, null, 2) : ''}`
+      `[${log.timestamp}] ${log.type.toUpperCase()} [${log.category?.toUpperCase()}]: ${log.message}${log.details ? '\n' + JSON.stringify(log.details, null, 2) : ''}`
     ).join('\n\n')
     
     navigator.clipboard.writeText(logsText)
-    addLog('success', 'Logs copied to clipboard')
+    addLog('success', 'Logs copied to clipboard', undefined, 'system')
   }
+
+  // Filter logs by category
+  const filteredLogs = filterCategory === 'all' 
+    ? logs 
+    : logs.filter(log => log.category === filterCategory)
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -245,7 +408,7 @@ export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 400 }}
             transition={{ type: "spring", damping: 25 }}
-            className="fixed top-0 right-0 h-full w-full md:w-[500px] bg-background border-l border-border shadow-2xl z-40 overflow-hidden flex flex-col"
+            className="fixed top-16 right-0 bottom-0 w-full md:w-[500px] bg-background border-l border-border shadow-2xl z-40 overflow-hidden flex flex-col"
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4 text-white">
@@ -300,36 +463,120 @@ export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps
               <div className="grid grid-cols-2 gap-2">
                 <Button onClick={runAllChecks} size="sm" variant="outline" className="w-full">
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
+                  Run All Tests
                 </Button>
                 <Button onClick={copyLogs} size="sm" variant="outline" className="w-full">
                   <Copy className="h-4 w-4 mr-2" />
                   Copy Logs
                 </Button>
               </div>
-              <Button 
-                onClick={testEventCreation} 
-                size="sm" 
-                className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
-              >
-                🧪 Test Event Creation API
-              </Button>
+              
+              <div className="text-xs font-semibold text-muted-foreground mb-2">Quick Tests:</div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  onClick={testEventCreation} 
+                  size="sm" 
+                  variant="outline"
+                  className="text-xs"
+                >
+                  <Calendar className="h-3 w-3 mr-1" />
+                  Event Create
+                </Button>
+                <Button 
+                  onClick={testProfileUpdate} 
+                  size="sm" 
+                  variant="outline"
+                  className="text-xs"
+                >
+                  <UserCircle className="h-3 w-3 mr-1" />
+                  Profile Edit
+                </Button>
+                <Button 
+                  onClick={testAvatarUpload} 
+                  size="sm" 
+                  variant="outline"
+                  className="text-xs"
+                >
+                  <Camera className="h-3 w-3 mr-1" />
+                  Avatar Upload
+                </Button>
+                <Button 
+                  onClick={testBookingSystem} 
+                  size="sm" 
+                  variant="outline"
+                  className="text-xs"
+                >
+                  <Activity className="h-3 w-3 mr-1" />
+                  Booking System
+                </Button>
+              </div>
+
+              {/* Category Filter */}
+              <div className="flex gap-1 flex-wrap pt-2">
+                <Badge 
+                  variant={filterCategory === 'all' ? 'default' : 'outline'}
+                  className="cursor-pointer text-xs"
+                  onClick={() => setFilterCategory('all')}
+                >
+                  All
+                </Badge>
+                <Badge 
+                  variant={filterCategory === 'profile' ? 'default' : 'outline'}
+                  className="cursor-pointer text-xs"
+                  onClick={() => setFilterCategory('profile')}
+                >
+                  Profile
+                </Badge>
+                <Badge 
+                  variant={filterCategory === 'event' ? 'default' : 'outline'}
+                  className="cursor-pointer text-xs"
+                  onClick={() => setFilterCategory('event')}
+                >
+                  Events
+                </Badge>
+                <Badge 
+                  variant={filterCategory === 'booking' ? 'default' : 'outline'}
+                  className="cursor-pointer text-xs"
+                  onClick={() => setFilterCategory('booking')}
+                >
+                  Bookings
+                </Badge>
+                <Badge 
+                  variant={filterCategory === 'auth' ? 'default' : 'outline'}
+                  className="cursor-pointer text-xs"
+                  onClick={() => setFilterCategory('auth')}
+                >
+                  Auth
+                </Badge>
+                <Badge 
+                  variant={filterCategory === 'system' ? 'default' : 'outline'}
+                  className="cursor-pointer text-xs"
+                  onClick={() => setFilterCategory('system')}
+                >
+                  System
+                </Badge>
+              </div>
             </div>
 
             {/* Logs */}
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-sm">Activity Log</h3>
-                <Badge variant="secondary">{logs.length} entries</Badge>
+                <Badge variant="secondary">{filteredLogs.length}/{logs.length} entries</Badge>
               </div>
               
-              {logs.length === 0 ? (
+              {filteredLogs.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
                   <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No logs yet. Run diagnostics to see activity.</p>
+                  <p className="text-sm">
+                    {logs.length === 0 
+                      ? 'No logs yet. Run diagnostics or use the app to see activity.'
+                      : `No logs in "${filterCategory}" category.`
+                    }
+                  </p>
                 </div>
               ) : (
-                logs.map((log, index) => (
+                filteredLogs.map((log, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, y: -10 }}

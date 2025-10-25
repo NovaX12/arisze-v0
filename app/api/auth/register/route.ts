@@ -37,8 +37,9 @@ export async function POST(request: NextRequest) {
     // Check if user already exists
     const existingUser = await users.findOne({ email })
     if (existingUser) {
+      console.log(`⚠️ Registration attempt with existing email: ${email}`)
       return NextResponse.json(
-        { error: 'User already exists with this email' },
+        { error: 'User already exists with this email. Please login instead.' },
         { status: 409 }
       )
     }

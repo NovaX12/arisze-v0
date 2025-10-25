@@ -80,6 +80,7 @@ export interface Booking {
 
 export interface EventParticipant {
   _id?: string
+  eventId: string // FIX: Added missing eventId field to match database schema
   userId: string
   userName: string
   userEmail: string

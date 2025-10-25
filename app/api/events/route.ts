@@ -22,7 +22,11 @@ export async function GET(request: NextRequest) {
     }
     
     if (userId) {
+      // If requesting specific user's events, show all their events (public and private)
       query.createdBy = userId
+    } else {
+      // If no userId specified, only show public events globally
+      query.isPublic = true
     }
     
     const events = await db.collection('events').find(query).toArray()

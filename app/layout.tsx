@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Providers } from "@/components/providers"
 import { Suspense } from "react"
 import { Toaster } from "sonner"
+import { DebugPanel } from "@/components/ui/debug-panel"
 import "./globals.css"
 
 const poppins = Poppins({
@@ -41,6 +42,7 @@ export default function RootLayout({
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
               {children}
               <Toaster richColors position="top-right" />
+              <DebugPanel />
             </ThemeProvider>
           </Providers>
         </Suspense>

@@ -10,10 +10,15 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   try {
+    console.log('🔵 POST /api/users/avatar-upload - Avatar upload request received')
+    
     // Get session to verify user is authenticated
     const session = await getServerSession(authOptions)
     
+    console.log('👤 Session:', session?.user?.email, 'ID:', session?.user?.id)
+    
     if (!session?.user?.id) {
+      console.error('❌ Unauthorized: No session found')
       return NextResponse.json(
         { error: 'Unauthorized - Please log in' },
         { status: 401 }
@@ -21,9 +26,11 @@ export async function POST(request: Request) {
     }
 
     const { avatarUrl } = await request.json()
+    console.log('📸 Avatar URL length:', avatarUrl?.length)
 
     // Validation
     if (!avatarUrl) {
+      console.error('❌ No avatar URL provided')
       return NextResponse.json(
         { error: 'Avatar URL is required' },
         { status: 400 }
@@ -32,18 +39,35 @@ export async function POST(request: Request) {
 
     // Basic validation for base64 data URL or HTTP URL
     if (!avatarUrl.startsWith('data:image/') && !avatarUrl.startsWith('http')) {
+      console.error('❌ Invalid avatar URL format:', avatarUrl.substring(0, 50))
       return NextResponse.json(
         { error: 'Invalid avatar URL format' },
         { status: 400 }
       )
     }
 
+    console.log('🔌 Connecting to database...')
     // Connect to database
     const db = await getDatabase()
+    console.log('✅ Database connected')
+    
+    console.log('💾 Updating user avatar for ID:', session.user.id)
+    
+    // Handle both ObjectId format and string/number format
+    let userQuery: any
+    try {
+      // Try ObjectId format first (standard MongoDB _id)
+      userQuery = { _id: new ObjectId(session.user.id) }
+      console.log('✅ Using ObjectId format for query')
+    } catch (error) {
+      // Fallback to direct ID (string or number) - for test/mock users
+      userQuery = { _id: session.user.id }
+      console.log('⚠️ Using direct ID format for query (non-ObjectId)')
+    }
     
     // Update user avatar
     const result = await db.collection('users').updateOne(
-      { _id: new ObjectId(session.user.id) },
+      userQuery,
       { 
         $set: { 
           avatar: avatarUrl,
@@ -52,12 +76,20 @@ export async function POST(request: Request) {
       }
     )
 
+    console.log('📊 Update result:', { 
+      matchedCount: result.matchedCount, 
+      modifiedCount: result.modifiedCount 
+    })
+
     if (result.matchedCount === 0) {
+      console.error('❌ User not found with ID:', session.user.id)
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       )
     }
+
+    console.log('✅ Avatar updated successfully')
 
     return NextResponse.json({
       message: 'Avatar updated successfully',
@@ -65,7 +97,7 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    console.error('Avatar upload error:', error)
+    console.error('❌ Avatar upload error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

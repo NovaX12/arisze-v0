@@ -182,7 +182,7 @@ function useToast() {
         listeners.splice(index, 1)
       }
     }
-  }, [state])
+  }, []) // FIX: Empty array to prevent infinite re-render loop (was [state])
 
   return {
     ...state,

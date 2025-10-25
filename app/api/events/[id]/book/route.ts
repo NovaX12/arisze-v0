@@ -139,6 +139,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     
     // Create event participant record
     const participant: Omit<EventParticipant, '_id'> = {
+      eventId: eventId, // FIX: Added missing eventId field
       userId: session.user.id,
       userName: session.user.name || 'Unknown User',
       userEmail: session.user.email || '',

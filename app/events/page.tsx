@@ -3,7 +3,6 @@
 import { motion } from "framer-motion"
 import { Header } from "@/components/ui/header"
 import { Footer } from "@/components/ui/footer"
-import { DebugPanel } from "@/components/ui/debug-panel"
 import { useState } from "react"
 import { EventsView } from "@/components/sections/events-view"
 import { CreateEventView } from "@/components/sections/create-event-view"
@@ -76,7 +75,6 @@ export default function EventsPage() {
         </div>
       </main>
       <Footer />
-      <DebugPanel />
     </motion.div>
   )
 }

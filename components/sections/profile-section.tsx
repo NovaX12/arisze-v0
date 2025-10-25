@@ -110,7 +110,13 @@ export function ProfileSection() {
   }
 
   const handleSave = async () => {
+    console.log('🔵 handleSave triggered')
+    console.log('📝 Current editData:', editData)
+    console.log('👤 Session user ID:', session?.user?.id)
+    
     try {
+      console.log('🌐 Sending PUT request to /api/users/profile...')
+      
       const response = await fetch('/api/users/profile', {
         method: 'PUT',
         headers: {
@@ -124,14 +130,18 @@ export function ProfileSection() {
         }),
       })
 
+      console.log('📡 Response status:', response.status)
       const result = await response.json()
+      console.log('📦 Response data:', result)
 
       if (response.ok) {
+        console.log('✅ Profile update successful!')
         setUserData(editData)
         setIsEditing(false)
         
         // Update session to reflect name changes in navbar
         if (editData.name !== userData.name) {
+          console.log('🔄 Updating session with new name...')
           await update({
             ...session,
             user: {
@@ -147,8 +157,10 @@ export function ProfileSection() {
           description: "Your profile information has been saved successfully.",
           variant: "default",
         })
+        
+        console.log('✅ Toast notification shown')
       } else {
-        console.error('Failed to update profile:', result.error)
+        console.error('❌ Failed to update profile:', result.error)
         toast({
           title: "Update Failed",
           description: result.error || "Failed to update profile. Please try again.",
@@ -156,7 +168,7 @@ export function ProfileSection() {
         })
       }
     } catch (error) {
-      console.error('Error updating profile:', error)
+      console.error('❌ Error updating profile:', error)
       toast({
         title: "Network Error",
         description: "Unable to update profile. Please check your connection and try again.",
@@ -171,11 +183,18 @@ export function ProfileSection() {
   }
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('📸 Avatar upload triggered')
     const file = event.target.files?.[0]
-    if (!file) return
+    if (!file) {
+      console.log('❌ No file selected')
+      return
+    }
+
+    console.log('📁 File details:', { name: file.name, size: file.size, type: file.type })
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
+      console.error('❌ Invalid file type:', file.type)
       toast({
         title: "Invalid File Type",
         description: "Please select an image file (JPG, PNG, GIF, etc.).",
@@ -186,6 +205,7 @@ export function ProfileSection() {
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
+      console.error('❌ File too large:', file.size)
       toast({
         title: "File Too Large",
         description: "File size must be less than 5MB. Please choose a smaller image.",
@@ -195,14 +215,17 @@ export function ProfileSection() {
     }
 
     setIsUploadingAvatar(true)
+    console.log('🔄 Converting file to base64...')
 
     try {
       // Convert file to base64 for simple upload (in production, use cloud storage)
       const reader = new FileReader()
       reader.onloadend = async () => {
         const base64String = reader.result as string
+        console.log('✅ File converted to base64 (length:', base64String.length, ')')
         
         try {
+          console.log('🌐 Uploading avatar to /api/users/avatar-upload...')
           const response = await fetch('/api/users/avatar-upload', {
             method: 'POST',
             headers: {
@@ -213,15 +236,19 @@ export function ProfileSection() {
             }),
           })
 
+          console.log('📡 Avatar upload response status:', response.status)
           const result = await response.json()
+          console.log('📦 Avatar upload result:', result)
 
           if (response.ok) {
+            console.log('✅ Avatar updated successfully!')
             // Update local state
             const newUserData = { ...userData, avatar: base64String }
             setUserData(newUserData)
             setEditData(newUserData)
             
             // Trigger session update to sync header avatar
+            console.log('🔄 Updating session with new avatar...')
             await update({
               ...session,
               user: {
@@ -236,7 +263,7 @@ export function ProfileSection() {
               variant: "default",
             })
           } else {
-            console.error('Failed to update avatar:', result.error)
+            console.error('❌ Failed to update avatar:', result.error)
             toast({
               title: "Upload Failed",
               description: result.error || "Failed to update avatar. Please try again.",
@@ -244,7 +271,7 @@ export function ProfileSection() {
             })
           }
         } catch (error) {
-          console.error('Error uploading avatar:', error)
+          console.error('❌ Error uploading avatar:', error)
           toast({
             title: "Upload Error",
             description: "Error uploading avatar. Please try again.",
