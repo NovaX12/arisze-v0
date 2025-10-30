@@ -1,6 +1,6 @@
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { getDatabase } from '@/lib/mongodb'
+import { firestoreDb } from '@/lib/firebase'
 import bcrypt from 'bcryptjs'
 
 export const authOptions: NextAuthOptions = {
@@ -17,13 +17,19 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Connect to database and find user
-          const db = await getDatabase()
-          const user = await db.collection('users').findOne({ email: credentials.email })
+          // Find user by email in Firestore
+          const usersSnapshot = await firestoreDb
+            .collection('users')
+            .where('email', '==', credentials.email)
+            .limit(1)
+            .get()
           
-          if (!user) {
+          if (usersSnapshot.empty) {
             return null
           }
+
+          const userDoc = usersSnapshot.docs[0]
+          const user = userDoc.data()
 
           // Verify password
           const isValidPassword = await bcrypt.compare(credentials.password, user.password)
@@ -34,7 +40,7 @@ export const authOptions: NextAuthOptions = {
 
           // Return user object without password
           const userResult = {
-            id: user._id.toString(),
+            id: userDoc.id,
             email: user.email,
             name: user.name,
             image: user.avatar || null

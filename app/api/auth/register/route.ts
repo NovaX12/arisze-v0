@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDatabase } from '@/lib/mongodb'
+import { firestoreDb, admin } from '@/lib/firebase'
 import bcrypt from 'bcryptjs'
 
 export async function POST(request: NextRequest) {
@@ -31,12 +31,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const db = await getDatabase()
-    const users = db.collection('users')
-
     // Check if user already exists
-    const existingUser = await users.findOne({ email })
-    if (existingUser) {
+    const existingUserSnapshot = await firestoreDb
+      .collection('users')
+      .where('email', '==', email)
+      .limit(1)
+      .get()
+      
+    if (!existingUserSnapshot.empty) {
       console.log(`⚠️ Registration attempt with existing email: ${email}`)
       return NextResponse.json(
         { error: 'User already exists with this email. Please login instead.' },
@@ -47,12 +49,12 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create user
-    const result = await users.insertOne({
+    // Create user in Firestore
+    const docRef = await firestoreDb.collection('users').add({
       name,
       email,
       password: hashedPassword,
-      createdAt: new Date(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
       role: 'user',
       isActive: true
     })
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         message: 'User created successfully',
-        userId: result.insertedId
+        userId: docRef.id
       },
       { status: 201 }
     )

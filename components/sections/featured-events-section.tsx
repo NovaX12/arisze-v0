@@ -72,16 +72,16 @@ export function FeaturedEventsSection() {
                 <EventCard 
                   event={{
                     _id: event._id || '',
-                    title: event.title,
-                    venue: event.venue || "TBA",
-                    image: event.image,
-                    date: `${event.date} ${event.time}`,
-                    tags: event.tags,
-                    attendees: event.attendees,
-                    maxAttendees: event.maxAttendees,
-                    description: event.description,
-                    contact: event.contact,
-                    address: event.address
+                    title: event.title || 'Untitled',
+                    venue: event.venue || event.location || "TBA",
+                    image: event.image || '/default-event.jpg',
+                    date: `${event.date || 'TBA'} ${event.time || ''}`,
+                    tags: event.tags || [],
+                    attendees: event.attendees || 0,
+                    maxAttendees: event.maxAttendees || 0,
+                    description: event.description || '',
+                    contact: (event as any).contact || '',
+                    address: (event as any).address || ''
                   }} 
                   featured 
                 />

@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDatabase } from '@/lib/mongodb'
+import { firestoreDb } from '@/lib/firebase'
 import { Post } from '@/lib/models'
 
 export async function GET(request: NextRequest) {
   try {
-    const db = await getDatabase()
-    const posts = await db.collection('posts')
-      .find({})
-      .sort({ createdAt: -1 })
-      .toArray()
+    const postsSnapshot = await firestoreDb.collection('posts')
+      .orderBy('createdAt', 'desc')
+      .get()
+    
+    const posts = postsSnapshot.docs.map(doc => ({ _id: doc.id, ...doc.data() }))
     
     return NextResponse.json(posts)
   } catch (error) {
@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
   try {
     const postData: Omit<Post, '_id'> = await request.json()
     
-    const db = await getDatabase()
-    const result = await db.collection('posts').insertOne({
+    const docRef = await firestoreDb.collection('posts').add({
       ...postData,
       likes: 0,
       comments: [],
@@ -32,7 +31,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       success: true, 
-      postId: result.insertedId 
+      postId: docRef.id 
     })
   } catch (error) {
     console.error('Error creating post:', error)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Moon, Sun, Menu, X, User, LogOut, HelpCircle, Sparkles, MessageSquare, Gamepad2, Brain } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useSession, signOut } from "next-auth/react"
@@ -13,6 +13,7 @@ export function Header() {
   const { theme, setTheme } = useTheme()
   const { data: session, status } = useSession()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [onlineCount, setOnlineCount] = useState(0)
 
   const navLinks = [
     { name: "Home", href: "/" },
@@ -22,8 +23,25 @@ export function Header() {
     { name: "Contact", href: "/contact" },
   ]
 
-  // Placeholder for online users count (will be dynamic later)
-  const [onlineCount] = useState(12)
+  // Fetch real online users count
+  useEffect(() => {
+    if (status === "authenticated") {
+      const fetchOnlineUsers = async () => {
+        try {
+          const response = await fetch('/api/users/online')
+          const data = await response.json()
+          setOnlineCount(data.onlineCount || 0)
+        } catch (error) {
+          console.error('Failed to fetch online users:', error)
+          setOnlineCount(1)
+        }
+      }
+
+      fetchOnlineUsers()
+      const interval = setInterval(fetchOnlineUsers, 60000) // Update every minute
+      return () => clearInterval(interval)
+    }
+  }, [status])
 
   return (
     <header className="sticky top-4 z-50 mx-4">

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { getDatabase } from '@/lib/mongodb'
-import { ObjectId } from 'mongodb'
+import { firestoreDb } from '@/lib/firebase'
 import path from 'path'
 import fs from 'fs'
 
@@ -46,48 +45,13 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log('🔌 Connecting to database...')
-    // Connect to database
-    const db = await getDatabase()
-    console.log('✅ Database connected')
+    console.log(' Updating user avatar for ID:', session.user.id)
     
-    console.log('💾 Updating user avatar for ID:', session.user.id)
-    
-    // Handle both ObjectId format and string/number format
-    let userQuery: any
-    try {
-      // Try ObjectId format first (standard MongoDB _id)
-      userQuery = { _id: new ObjectId(session.user.id) }
-      console.log('✅ Using ObjectId format for query')
-    } catch (error) {
-      // Fallback to direct ID (string or number) - for test/mock users
-      userQuery = { _id: session.user.id }
-      console.log('⚠️ Using direct ID format for query (non-ObjectId)')
-    }
-    
-    // Update user avatar
-    const result = await db.collection('users').updateOne(
-      userQuery,
-      { 
-        $set: { 
-          avatar: avatarUrl,
-          updatedAt: new Date()
-        } 
-      }
-    )
-
-    console.log('📊 Update result:', { 
-      matchedCount: result.matchedCount, 
-      modifiedCount: result.modifiedCount 
+    // Update user avatar in Firestore
+    await firestoreDb.collection('users').doc(session.user.id).update({
+      avatar: avatarUrl,
+      updatedAt: new Date()
     })
-
-    if (result.matchedCount === 0) {
-      console.error('❌ User not found with ID:', session.user.id)
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
-    }
 
     console.log('✅ Avatar updated successfully')
 

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { getDatabase } from '@/lib/mongodb'
-import { ObjectId } from 'mongodb'
+import { firestoreDb, admin } from '@/lib/firebase'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,29 +34,29 @@ export async function POST(request: Request) {
       )
     }
 
-    // Connect to database
-    const db = await getDatabase()
-    
-    // Create new booking
+    // Create new booking in Firestore
     const newBooking = {
       userId: session.user.id,
       venueId,
       venueName,
-      date: new Date(date),
+      date: admin.firestore.Timestamp.fromDate(new Date(date)),
       time,
       groupSize: parseInt(groupSize),
       status: 'confirmed',
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
     }
 
-    const result = await db.collection('bookings').insertOne(newBooking)
+    const docRef = await firestoreDb.collection('bookings').add(newBooking)
 
     return NextResponse.json({
       message: 'Event booked successfully!',
       booking: {
-        id: result.insertedId,
-        ...newBooking
+        id: docRef.id,
+        ...newBooking,
+        date: new Date(date), // Convert back for response
+        createdAt: new Date(),
+        updatedAt: new Date()
       }
     }, { status: 201 })
 
@@ -82,17 +81,20 @@ export async function GET(request: Request) {
       )
     }
 
-    // Connect to database
-    const db = await getDatabase()
-    
-    // Fetch user's bookings
-    const bookings = await db.collection('bookings')
-      .find({ 
-        userId: session.user.id,
-        status: 'confirmed' // Only show active bookings
-      })
-      .sort({ date: 1, time: 1 }) // Sort by date and time
-      .toArray()
+    // Fetch user's bookings from Firestore
+    const bookingsSnapshot = await firestoreDb.collection('bookings')
+      .where('userId', '==', session.user.id)
+      .where('status', '==', 'confirmed') // Only show active bookings
+      .orderBy('date', 'asc') // Sort by date
+      .get()
+
+    const bookings = bookingsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: doc.data().date?.toDate?.() || doc.data().date, // Convert Firestore Timestamp
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+      updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt
+    }))
 
     return NextResponse.json({
       bookings: bookings
@@ -129,21 +131,28 @@ export async function DELETE(request: Request) {
       )
     }
 
-    // Connect to database
-    const db = await getDatabase()
+    // Get the booking to verify ownership
+    const bookingDoc = await firestoreDb.collection('bookings').doc(bookingId).get()
     
-    // Delete the booking (only if it belongs to the current user)
-    const result = await db.collection('bookings').deleteOne({
-      _id: bookingId,
-      userId: session.user.id
-    })
-
-    if (result.deletedCount === 0) {
+    if (!bookingDoc.exists) {
       return NextResponse.json(
-        { error: 'Booking not found or unauthorized' },
+        { error: 'Booking not found' },
         { status: 404 }
       )
     }
+
+    const bookingData = bookingDoc.data()
+    
+    // Check if booking belongs to current user
+    if (bookingData?.userId !== session.user.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized to delete this booking' },
+        { status: 403 }
+      )
+    }
+
+    // Delete the booking
+    await firestoreDb.collection('bookings').doc(bookingId).delete()
 
     return NextResponse.json({
       message: 'Booking cancelled successfully'

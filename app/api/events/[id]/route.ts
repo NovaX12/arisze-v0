@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { getDatabase } from '@/lib/mongodb'
-import { ObjectId } from 'mongodb'
+import admin from 'firebase-admin'
+import { initializeApp, getApps, cert } from 'firebase-admin/app'
+import { getFirestore } from 'firebase-admin/firestore'
+
+// Initialize Firebase Admin if not already initialized
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  })
+}
+
+const firestoreDb = getFirestore()
 
 export const dynamic = 'force-dynamic'
 
@@ -28,77 +42,89 @@ export async function DELETE(
 
     const eventId = params.id
     
-    // Validate ObjectId format
-    let objectId: ObjectId
-    try {
-      objectId = new ObjectId(eventId)
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid event ID format' },
-        { status: 400 }
-      )
-    }
-
-    // Connect to database
-    const db = await getDatabase()
-    
     // Find the event first to verify it exists and check ownership
-    const event = await db.collection('events').findOne({ _id: objectId })
+    const eventDocRef = firestoreDb.collection('events').doc(eventId)
+    const eventDoc = await eventDocRef.get()
     
-    if (!event) {
+    if (!eventDoc.exists) {
       return NextResponse.json(
         { error: 'Event not found' },
         { status: 404 }
       )
     }
 
+    const event = eventDoc.data()
+
     // Verify the user is the event creator
-    if (event.createdBy !== session.user.id) {
+    if (event?.createdBy !== session.user.id) {
       return NextResponse.json(
         { error: 'Unauthorized - You can only delete events you created' },
         { status: 403 }
       )
     }
 
-    // Count affected bookings before deletion
-    const bookingsCount = await db.collection('bookings').countDocuments({ eventId: eventId })
+    // Use Firestore batch for atomic deletion across collections
+    const batch = firestoreDb.batch()
     
-    // Delete all related bookings
-    await db.collection('bookings').deleteMany({ eventId: eventId })
+    // Query and collect documents to delete from related collections
+    console.log('🔍 Finding related documents to delete...')
     
-    // Delete all related event participants
-    await db.collection('eventParticipants').deleteMany({ eventId: eventId })
+    // 1. Find and delete bookings
+    const bookingsSnapshot = await firestoreDb
+      .collection('bookings')
+      .where('eventId', '==', eventId)
+      .get()
     
-    // Delete the userCreatedEvents tracking record
-    await db.collection('userCreatedEvents').deleteMany({ 
-      eventId: eventId,
-      userId: session.user.id 
+    const bookingsCount = bookingsSnapshot.size
+    bookingsSnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref)
     })
+    console.log(`✅ Queued ${bookingsCount} bookings for deletion`)
     
-    // Update user's event profile stats
-    await db.collection('userEventProfiles').updateOne(
-      { userId: session.user.id },
-      {
-        $inc: { eventsCreated: -1 },
-        $set: { updatedAt: new Date() }
-      }
-    )
+    // 2. Find and delete event participants
+    const participantsSnapshot = await firestoreDb
+      .collection('eventParticipants')
+      .where('eventId', '==', eventId)
+      .get()
     
-    // Finally, delete the event itself
-    const result = await db.collection('events').deleteOne({ _id: objectId })
+    participantsSnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref)
+    })
+    console.log(`✅ Queued ${participantsSnapshot.size} participants for deletion`)
     
-    if (result.deletedCount === 0) {
-      return NextResponse.json(
-        { error: 'Failed to delete event' },
-        { status: 500 }
-      )
-    }
+    // 3. Find and delete userCreatedEvents tracking records
+    const userCreatedEventsSnapshot = await firestoreDb
+      .collection('userCreatedEvents')
+      .where('eventId', '==', eventId)
+      .where('userId', '==', session.user.id)
+      .get()
+    
+    userCreatedEventsSnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref)
+    })
+    console.log(`✅ Queued ${userCreatedEventsSnapshot.size} user-event tracking records for deletion`)
+    
+    // 4. Update user's event profile stats (decrement eventsCreated)
+    const userProfileRef = firestoreDb.collection('userEventProfiles').doc(session.user.id)
+    batch.update(userProfileRef, {
+      eventsCreated: admin.firestore.FieldValue.increment(-1),
+      updatedAt: new Date()
+    })
+    console.log('✅ Queued user profile update (decrement eventsCreated)')
+    
+    // 5. Delete the event itself
+    batch.delete(eventDocRef)
+    console.log('✅ Queued event deletion')
+    
+    // Commit all operations atomically
+    await batch.commit()
+    console.log('✅ Batch commit successful - all deletions completed')
 
     return NextResponse.json({
       success: true,
       message: 'Event deleted successfully',
       deletedBookings: bookingsCount,
-      eventTitle: event.title
+      eventTitle: event?.title || 'Unknown'
     })
 
   } catch (error) {
@@ -121,24 +147,11 @@ export async function GET(
   try {
     const eventId = params.id
     
-    // Validate ObjectId format
-    let objectId: ObjectId
-    try {
-      objectId = new ObjectId(eventId)
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid event ID format' },
-        { status: 400 }
-      )
-    }
-
-    // Connect to database
-    const db = await getDatabase()
+    // Get event document from Firestore
+    const eventDocRef = firestoreDb.collection('events').doc(eventId)
+    const eventDoc = await eventDocRef.get()
     
-    // Find the event
-    const event = await db.collection('events').findOne({ _id: objectId })
-    
-    if (!event) {
+    if (!eventDoc.exists) {
       return NextResponse.json(
         { error: 'Event not found' },
         { status: 404 }
@@ -147,7 +160,10 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      event: event
+      event: {
+        id: eventDoc.id,
+        ...eventDoc.data()
+      }
     })
 
   } catch (error) {

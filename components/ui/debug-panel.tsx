@@ -53,9 +53,11 @@ export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps
   const [internalIsOpen, setInternalIsOpen] = useState(false)
   const [logs, setLogs] = useState<DebugLog[]>([])
   const [dbStatus, setDbStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown')
+  const [firestoreStatus, setFirestoreStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown')
   const [sessionStatus, setSessionStatus] = useState<'unknown' | 'authenticated' | 'unauthenticated'>('unknown')
   const [apiHealth, setApiHealth] = useState<'unknown' | 'healthy' | 'unhealthy'>('unknown')
   const [filterCategory, setFilterCategory] = useState<DebugLog['category'] | 'all'>('all')
+  const [verboseLogging, setVerboseLogging] = useState(false)
   
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen
   const handleToggle = onToggle || (() => setInternalIsOpen(!internalIsOpen))
@@ -142,14 +144,35 @@ export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps
       
       if (response.ok && data.connected) {
         setDbStatus('connected')
-        addLog('success', 'Database connected successfully', data)
+        addLog('success', 'Database connected successfully', verboseLogging ? data : undefined)
       } else {
         setDbStatus('disconnected')
-        addLog('error', 'Database connection failed', data)
+        addLog('error', 'Database connection failed', verboseLogging ? data : undefined)
       }
     } catch (error) {
       setDbStatus('disconnected')
-      addLog('error', 'Failed to check database connection', error)
+      addLog('error', 'Failed to check database connection', verboseLogging ? error : undefined)
+    }
+  }
+
+  // Check Firestore connection
+  const checkFirestore = async () => {
+    addLog('info', 'Checking Firestore connection...')
+    try {
+      // Try to fetch events which uses Firestore
+      const response = await fetch('/api/events')
+      const data = await response.json()
+      
+      if (response.ok) {
+        setFirestoreStatus('connected')
+        addLog('success', `Firestore connected - Found ${data.events?.length || 0} events`, verboseLogging ? data : undefined)
+      } else {
+        setFirestoreStatus('disconnected')
+        addLog('error', 'Firestore connection failed', verboseLogging ? data : undefined)
+      }
+    } catch (error) {
+      setFirestoreStatus('disconnected')
+      addLog('error', 'Failed to check Firestore connection', verboseLogging ? error : undefined)
     }
   }
 
@@ -326,6 +349,7 @@ export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps
     setLogs([]) // Clear previous logs
     await checkSession()
     await checkDatabase()
+    await checkFirestore()
     await checkApiHealth()
     await testProfileUpdate()
     await testAvatarUpload()
@@ -428,7 +452,7 @@ export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps
               </div>
 
               {/* Status Indicators */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2">
                   <div className="flex items-center gap-2 mb-1">
                     {getStatusIcon(dbStatus)}
@@ -436,6 +460,15 @@ export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps
                   </div>
                   <div className="text-xs font-medium">Database</div>
                   <div className="text-xs opacity-80 capitalize">{dbStatus}</div>
+                </div>
+                
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    {getStatusIcon(firestoreStatus)}
+                    <Database className="h-4 w-4" />
+                  </div>
+                  <div className="text-xs font-medium">Firestore</div>
+                  <div className="text-xs opacity-80 capitalize">{firestoreStatus}</div>
                 </div>
                 
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2">
@@ -460,14 +493,23 @@ export function DebugPanel({ isOpen: externalIsOpen, onToggle }: DebugPanelProps
 
             {/* Actions */}
             <div className="p-4 border-b border-border space-y-2">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <Button onClick={runAllChecks} size="sm" variant="outline" className="w-full">
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Run All Tests
+                  Run Tests
                 </Button>
                 <Button onClick={copyLogs} size="sm" variant="outline" className="w-full">
                   <Copy className="h-4 w-4 mr-2" />
                   Copy Logs
+                </Button>
+                <Button 
+                  onClick={() => setVerboseLogging(!verboseLogging)} 
+                  size="sm" 
+                  variant={verboseLogging ? "default" : "outline"} 
+                  className="w-full"
+                >
+                  <Activity className="h-4 w-4 mr-2" />
+                  {verboseLogging ? "Verbose" : "Simple"}
                 </Button>
               </div>
               

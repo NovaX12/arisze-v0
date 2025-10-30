@@ -4,7 +4,8 @@ import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Calendar, Clock, MapPin, Users, Loader2, CheckCircle, Plus, Image as ImageIcon } from "lucide-react"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -159,6 +160,9 @@ export function CreateEventModal({ isOpen, onClose, onEventCreated }: CreateEven
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <VisuallyHidden>
+          <DialogTitle>Create New Event</DialogTitle>
+        </VisuallyHidden>
         <div className="relative">
           <button
             onClick={handleClose}

@@ -4,7 +4,6 @@ import { useState } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ParticleBackground } from "@/components/ui/particle-background"
 import { FeaturesModal } from "@/components/ui/features-modal"
 
 export function HeroSection() {
@@ -13,9 +12,8 @@ export function HeroSection() {
   return (
     <>
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Particle Background */}
-      <ParticleBackground />
-
+      {/* Particle Background - Now global in layout.tsx */}
+      
       {/* Hero Content */}
       <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
         <motion.h1

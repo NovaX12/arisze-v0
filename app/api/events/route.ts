@@ -1,46 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { getDatabase } from '@/lib/mongodb'
-import { ObjectId } from 'mongodb'
 import { Event, UserCreatedEvent, UserEventProfile } from '@/lib/models'
+import { firestoreDb } from '@/lib/firebase'
+import type { Query } from 'firebase-admin/firestore'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const db = await getDatabase()
-    
+    console.log('🔵 GET /api/events - Fetching events...')
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type')
     const userId = searchParams.get('userId')
     
-    let query: any = {}
+    console.log('📋 Query params:', { type, userId })
     
-    if (type) {
-      query.type = type
-    }
+    // Build Firestore query
+    let query: Query = firestoreDb.collection('events')
     
     if (userId) {
       // If requesting specific user's events, show all their events (public and private)
-      query.createdBy = userId
+      console.log(`🔍 Filtering by userId: ${userId}`)
+      query = query.where('createdBy', '==', userId)
+      // Sort by createdAt (requires index for createdBy + createdAt)
+      query = query.orderBy('createdAt', 'desc')
     } else {
       // If no userId specified, only show public events globally
-      query.isPublic = true
+      console.log('🌍 Fetching all public events')
+      query = query.where('isPublic', '==', true)
+      // ⚠️ TEMPORARY FIX: Remove sorting to avoid index requirement
+      // Re-enable after index finishes building: query = query.orderBy('createdAt', 'desc')
     }
     
-    const events = await db.collection('events').find(query).toArray()
+    // Add type filter if present
+    if (type) {
+      console.log(`🏷️  Filtering by type: ${type}`)
+      query = query.where('type', '==', type)
+    }
     
-    // Manual sorting by createdAt in descending order (newest first)
-    const sortedEvents = events.sort((a, b) => {
-      const dateA = new Date(a.createdAt || 0).getTime()
-      const dateB = new Date(b.createdAt || 0).getTime()
-      return dateB - dateA
+    // Execute query
+    const eventsSnapshot = await query.get()
+    console.log(`📊 Found ${eventsSnapshot.size} events`)
+    
+    // Map documents to clean JSON array with proper date serialization
+    const events = eventsSnapshot.docs.map((doc: any) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        _id: doc.id,  // Add _id for compatibility
+        ...data,
+        // Convert Firestore Timestamps to ISO strings for JSON serialization
+        date: data.date?.toDate ? data.date.toDate().toISOString() : data.date,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt
+      }
     })
     
-    return NextResponse.json({ events: sortedEvents })
+    console.log('✅ Returning events:', events.length)
+    if (events.length > 0) {
+      console.log('📝 First event sample:', { 
+        id: events[0].id, 
+        title: events[0].title,
+        isPublic: events[0].isPublic,
+        createdBy: events[0].createdBy
+      })
+    }
+    
+    return NextResponse.json({ events })
   } catch (error) {
-    console.error('Error fetching events:', error)
+    console.error('❌ Error fetching events:', error)
     return NextResponse.json({ error: 'Failed to fetch events' }, { status: 500 })
   }
 }
@@ -113,15 +142,11 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    console.log('🔌 Connecting to database...')
-    const db = await getDatabase()
-    console.log('✅ Database connected')
-    
-    // Create the event with user information
-    const newEvent: Omit<Event, '_id'> = {
+    // Create the event object with user information
+    const newEvent: Omit<Event, '_id' | 'id'> = {
       title: eventData.title,
       description: eventData.description,
-      venue: venueName,
+      location: venueName,
       image: eventData.image || '/default-event-image.jpg',
       date: eventDate,
       time: eventData.time,
@@ -129,12 +154,7 @@ export async function POST(request: NextRequest) {
       attendees: 0,
       maxAttendees: maxAttendeesNum,
       university: eventData.university,
-      contact: eventData.contact,
-      address: eventData.address,
       createdBy: session.user.id,
-      createdByName: session.user.name || 'Unknown User',
-      createdByEmail: session.user.email || '',
-      eventType: 'user-generated',
       isPublic: eventData.isPublic !== false, // Default to public
       createdAt: new Date(),
       updatedAt: new Date()
@@ -142,37 +162,47 @@ export async function POST(request: NextRequest) {
     
     console.log('✅ Event object created:', JSON.stringify(newEvent, null, 2))
     
-    console.log('💾 Inserting event into database...')
-    const result = await db.collection('events').insertOne(newEvent)
-    console.log('✅ Event inserted with ID:', result.insertedId)
+    // Use Firestore batched write for atomic operations
+    console.log('💾 Starting Firestore batch operations...')
+    const batch = firestoreDb.batch()
     
-    // Track user's created event
-    const userCreatedEvent: Omit<UserCreatedEvent, '_id'> = {
+    // 1. Add event to 'events' collection
+    const eventDocRef = firestoreDb.collection('events').doc()
+    batch.set(eventDocRef, newEvent)
+    const eventId = eventDocRef.id
+    console.log('✅ Event queued for creation with ID:', eventId)
+    
+    // 2. Add document to 'userCreatedEvents' collection
+    const userCreatedEventRef = firestoreDb.collection('userCreatedEvents').doc()
+    batch.set(userCreatedEventRef, {
       userId: session.user.id,
-      eventId: result.insertedId.toString(),
+      eventId: eventId,
       createdAt: new Date()
-    }
+    })
+    console.log('✅ User-event tracking queued')
     
-    await db.collection('userCreatedEvents').insertOne(userCreatedEvent)
-    console.log('✅ User event tracking created')
+    // 3. Update 'userEventProfiles' document (upsert with merge)
+    const userProfileRef = firestoreDb.collection('userEventProfiles').doc(session.user.id)
     
-    // Update user's event profile stats
-    await db.collection('userEventProfiles').updateOne(
-      { userId: session.user.id },
-      {
-        $inc: { eventsCreated: 1 },
-        $set: { 
-          lastEventCreated: new Date(),
-          updatedAt: new Date()
-        }
-      },
-      { upsert: true }
-    )
-    console.log('✅ User event profile updated')
+    // Get current profile to increment eventsCreated
+    const userProfileDoc = await userProfileRef.get()
+    const currentEventsCreated = userProfileDoc.exists ? (userProfileDoc.data()?.eventsCreated || 0) : 0
+    
+    batch.set(userProfileRef, {
+      userId: session.user.id,
+      eventsCreated: currentEventsCreated + 1,
+      lastEventCreated: new Date(),
+      updatedAt: new Date()
+    }, { merge: true })
+    console.log('✅ User profile update queued')
+    
+    // Commit all operations atomically
+    await batch.commit()
+    console.log('✅ Batch commit successful - all operations completed')
     
     return NextResponse.json({ 
       success: true, 
-      eventId: result.insertedId,
+      eventId: eventId,
       message: 'Event created successfully!'
     }, { status: 201 })
     

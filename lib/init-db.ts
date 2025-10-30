@@ -1,17 +1,13 @@
-import { getDatabase } from './mongodb'
+import { firestoreDb } from './firebase'
 
 export async function initializeDatabase() {
   try {
-    const db = await getDatabase()
-    
-
-
-    // Initialize sample events
+    // Initialize sample events in Firestore
     const events = [
       {
         title: "Board Game Night",
         description: "Join us for an evening of fun board games and socializing!",
-        cafe: "Cozy Corner Cafe",
+        location: "Cozy Corner Cafe",
         image: "/cozy-cafe-with-board-games.jpg",
         date: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
         time: "19:00",
@@ -19,16 +15,15 @@ export async function initializeDatabase() {
         attendees: 12,
         maxAttendees: 20,
         university: "Kaunas University of Technology",
-        contact: "info@cozycorner.lt",
-        address: "Laisvės al. 60, 44309 Kaunas, Lithuania",
         createdBy: "system",
+        isPublic: true,
         createdAt: new Date(),
         updatedAt: new Date()
       },
       {
         title: "Study Group Session",
         description: "Collaborative study session for computer science students.",
-        cafe: "Academic Grounds",
+        location: "Academic Grounds",
         image: "/modern-study-cafe-with-students.jpg",
         date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Day after tomorrow
         time: "14:00",
@@ -36,16 +31,15 @@ export async function initializeDatabase() {
         attendees: 8,
         maxAttendees: 15,
         university: "Kaunas University of Technology",
-        contact: "study@academicgrounds.lt",
-        address: "K. Donelaičio g. 73, 44249 Kaunas, Lithuania",
         createdBy: "system",
+        isPublic: true,
         createdAt: new Date(),
         updatedAt: new Date()
       },
       {
         title: "Live Acoustic Music",
         description: "Enjoy live acoustic music performance in a cozy atmosphere.",
-        cafe: "Melody Lounge",
+        location: "Melody Lounge",
         image: "/intimate-cafe-with-acoustic-guitar-performance.jpg",
         date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // Friday
         time: "20:00",
@@ -53,16 +47,15 @@ export async function initializeDatabase() {
         attendees: 25,
         maxAttendees: 30,
         university: "Kaunas University of Technology",
-        contact: "music@melodylounge.lt",
-        address: "Laisvės al. 36, 44309 Kaunas, Lithuania",
         createdBy: "system",
+        isPublic: true,
         createdAt: new Date(),
         updatedAt: new Date()
       },
       {
         title: "Art & Coffee Workshop",
         description: "Express your creativity while enjoying great coffee!",
-        cafe: "Creative Beans",
+        location: "Creative Beans",
         image: "/artistic-cafe-with-painting-supplies.jpg",
         date: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000), // Saturday
         time: "10:00",
@@ -70,9 +63,8 @@ export async function initializeDatabase() {
         attendees: 6,
         maxAttendees: 12,
         university: "Kaunas University of Technology",
-        contact: "art@creativebeans.lt",
-        address: "K. Donelaičio g. 58, 44248 Kaunas, Lithuania",
         createdBy: "system",
+        isPublic: true,
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -126,9 +118,23 @@ export async function initializeDatabase() {
       }
     ]
 
-    // Insert data into collections
-    await db.collection('events').insertMany(events)
-    await db.collection('badges').insertMany(badges)
+    // Insert data into Firestore collections using batch write
+    const batch = firestoreDb.batch()
+    
+    // Add events to batch
+    events.forEach(event => {
+      const eventRef = firestoreDb.collection('events').doc()
+      batch.set(eventRef, event)
+    })
+    
+    // Add badges to batch
+    badges.forEach(badge => {
+      const badgeRef = firestoreDb.collection('badges').doc()
+      batch.set(badgeRef, badge)
+    })
+    
+    // Commit the batch
+    await batch.commit()
 
     // Database initialization completed successfully
     return { success: true }

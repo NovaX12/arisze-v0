@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { getDatabase } from '@/lib/mongodb'
-import { ObjectId } from 'mongodb'
-import { Booking, EventParticipant } from '@/lib/models'
+import { firestoreDb } from '@/lib/firebase'
+import admin from 'firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,131 +60,135 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     }
     
-    const db = await getDatabase()
-    
-    // Validate and convert eventId to ObjectId
-    let objectId: ObjectId
-    try {
-      objectId = new ObjectId(eventId)
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid event ID format' },
-        { status: 400 }
-      )
-    }
-    
-    // Check if event exists and is bookable
-    const event = await db.collection('events').findOne({ _id: objectId })
-    if (!event) {
-      return NextResponse.json(
-        { error: 'Event not found' },
-        { status: 404 }
-      )
-    }
-
-    // Check if event is full
-    const currentAttendees = event.attendees || 0
-    const maxAttendees = event.maxAttendees || 0
-    const guestCount = bookingData.hasGuest ? 1 : 0
-    const totalNewAttendees = 1 + guestCount
-    
-    if (currentAttendees + totalNewAttendees > maxAttendees) {
-      return NextResponse.json(
-        { error: 'Event is full or not enough spots available' },
-        { status: 400 }
-      )
-    }
-
-    // Check if user already booked this event
-    const existingBooking = await db.collection('bookings').findOne({
-      eventId: eventId,
-      userId: session.user.id
-    })
-    
-    if (existingBooking) {
-      return NextResponse.json(
-        { error: 'You have already booked this event' },
-        { status: 400 }
-      )
-    }
-
-    // Check if event date has passed
-    const eventDate = new Date(event.date)
-    if (eventDate <= new Date()) {
-      return NextResponse.json(
-        { error: 'Cannot book past events' },
-        { status: 400 }
-      )
-    }
-    
-    // Create the booking
-    const newBooking: Omit<Booking, '_id'> = {
-      eventId: eventId,
-      userId: session.user.id,
-      userName: session.user.name || 'Unknown User',
-      userEmail: session.user.email || '',
-      userPhone: bookingData.userPhone,
-      groupSize: bookingData.groupSize || 1,
-      hasGuest: bookingData.hasGuest || false,
-      guestInfo: bookingData.hasGuest ? bookingData.guestInfo : undefined,
-      date: eventDate,
-      time: event.time,
-      status: 'confirmed',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-    
-    const bookingResult = await db.collection('bookings').insertOne(newBooking)
-    
-    // Create event participant record
-    const participant: Omit<EventParticipant, '_id'> = {
-      eventId: eventId, // FIX: Added missing eventId field
-      userId: session.user.id,
-      userName: session.user.name || 'Unknown User',
-      userEmail: session.user.email || '',
-      userPhone: bookingData.userPhone,
-      groupSize: bookingData.groupSize || 1,
-      hasGuest: bookingData.hasGuest || false,
-      guestInfo: bookingData.hasGuest ? bookingData.guestInfo : undefined,
-      joinedAt: new Date(),
-      status: 'registered'
-    }
-    
-    await db.collection('eventParticipants').insertOne(participant)
-    
-    // Update event attendee count
-    await db.collection('events').updateOne(
-      { _id: objectId },
-      { 
-        $inc: { attendees: totalNewAttendees },
-        $set: { updatedAt: new Date() }
+    // Run Firestore Transaction for atomicity
+    const result = await firestoreDb.runTransaction(async (transaction) => {
+      // 1. Get event document
+      const eventDocRef = firestoreDb.collection('events').doc(eventId)
+      const eventDoc = await transaction.get(eventDocRef)
+      
+      if (!eventDoc.exists) {
+        throw new Error('EVENT_NOT_FOUND')
       }
-    )
-    
-    // Update user's event profile stats
-    await db.collection('userEventProfiles').updateOne(
-      { userId: session.user.id },
-      {
-        $inc: { eventsBooked: 1 },
-        $set: { 
-          lastEventBooked: new Date(),
-          updatedAt: new Date()
-        }
-      },
-      { upsert: true }
-    )
+      
+      const event = eventDoc.data()
+      
+      // Check if event is full
+      const currentAttendees = event?.attendees || 0
+      const maxAttendees = event?.maxAttendees || 0
+      const guestCount = bookingData.hasGuest ? 1 : 0
+      const totalNewAttendees = 1 + guestCount
+      
+      if (currentAttendees + totalNewAttendees > maxAttendees) {
+        throw new Error('EVENT_FULL')
+      }
+      
+      // 2. Check if user already booked this event
+      const existingBookingSnapshot = await firestoreDb
+        .collection('bookings')
+        .where('eventId', '==', eventId)
+        .where('userId', '==', session.user.id)
+        .limit(1)
+        .get()
+      
+      if (!existingBookingSnapshot.empty) {
+        throw new Error('ALREADY_BOOKED')
+      }
+      
+      // Check if event date has passed
+      const eventDate = event?.date?.toDate ? event.date.toDate() : new Date(event?.date)
+      if (eventDate <= new Date()) {
+        throw new Error('PAST_EVENT')
+      }
+      
+      // 3. Create the booking
+      const bookingDocRef = firestoreDb.collection('bookings').doc()
+      const newBooking = {
+        eventId: eventId,
+        userId: session.user.id,
+        userName: session.user.name || 'Unknown User',
+        userEmail: session.user.email || '',
+        userPhone: bookingData.userPhone,
+        groupSize: bookingData.groupSize || 1,
+        hasGuest: bookingData.hasGuest || false,
+        guestInfo: bookingData.hasGuest ? bookingData.guestInfo : null,
+        date: eventDate,
+        time: event?.time || '',
+        status: 'confirmed',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+      
+      transaction.set(bookingDocRef, newBooking)
+      
+      // 4. Create event participant record
+      const participantDocRef = firestoreDb.collection('eventParticipants').doc()
+      const participant = {
+        eventId: eventId,
+        userId: session.user.id,
+        userName: session.user.name || 'Unknown User',
+        userEmail: session.user.email || '',
+        userPhone: bookingData.userPhone,
+        groupSize: bookingData.groupSize || 1,
+        hasGuest: bookingData.hasGuest || false,
+        guestInfo: bookingData.hasGuest ? bookingData.guestInfo : null,
+        joinedAt: new Date(),
+        status: 'registered'
+      }
+      
+      transaction.set(participantDocRef, participant)
+      
+      // 5. Update event attendee count using FieldValue.increment
+      transaction.update(eventDocRef, {
+        attendees: admin.firestore.FieldValue.increment(totalNewAttendees),
+        updatedAt: new Date()
+      })
+      
+      // 6. Update user's event profile stats using FieldValue.increment
+      const userProfileRef = firestoreDb.collection('userEventProfiles').doc(session.user.id)
+      transaction.set(userProfileRef, {
+        userId: session.user.id,
+        eventsBooked: admin.firestore.FieldValue.increment(1),
+        lastEventBooked: new Date(),
+        updatedAt: new Date()
+      }, { merge: true })
+      
+      // Return data for response
+      return {
+        bookingId: bookingDocRef.id,
+        eventTitle: event?.title || 'Unknown Event',
+        eventDate: eventDate,
+        totalNewAttendees
+      }
+    })
     
     return NextResponse.json({ 
       success: true, 
-      bookingId: bookingResult.insertedId,
-      message: `Successfully booked ${event.title}${bookingData.hasGuest ? ' (with guest)' : ''}!`,
-      eventTitle: event.title,
-      eventDate: event.date,
-      totalAttendees: totalNewAttendees
+      bookingId: result.bookingId,
+      message: `Successfully booked ${result.eventTitle}${bookingData.hasGuest ? ' (with guest)' : ''}!`,
+      eventTitle: result.eventTitle,
+      eventDate: result.eventDate,
+      totalAttendees: result.totalNewAttendees
     }, { status: 201 })
     
   } catch (error) {
     console.error('Error booking event:', error)
+    
+    // Handle specific transaction errors
+    if (error instanceof Error) {
+      if (error.message === 'EVENT_NOT_FOUND') {
+        return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+      }
+      if (error.message === 'EVENT_FULL') {
+        return NextResponse.json({ error: 'Event is full or not enough spots available' }, { status: 400 })
+      }
+      if (error.message === 'ALREADY_BOOKED') {
+        return NextResponse.json({ error: 'You have already booked this event' }, { status: 400 })
+      }
+      if (error.message === 'PAST_EVENT') {
+        return NextResponse.json({ error: 'Cannot book past events' }, { status: 400 })
+      }
+    }
+    
     return NextResponse.json({ error: 'Failed to book event' }, { status: 500 })
   }
 }
@@ -203,17 +206,24 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     const eventId = params.id
-    const db = await getDatabase()
     
-    // Check if user has booked this event
-    const booking = await db.collection('bookings').findOne({
-      eventId: eventId,
-      userId: session.user.id
-    })
+    // Query bookings collection where eventId and userId match
+    const bookingSnapshot = await firestoreDb
+      .collection('bookings')
+      .where('eventId', '==', eventId)
+      .where('userId', '==', session.user.id)
+      .limit(1)
+      .get()
+    
+    const hasBooked = !bookingSnapshot.empty
+    const booking = hasBooked ? {
+      id: bookingSnapshot.docs[0].id,
+      ...bookingSnapshot.docs[0].data()
+    } : null
     
     return NextResponse.json({ 
-      hasBooked: !!booking,
-      booking: booking || null
+      hasBooked,
+      booking
     })
     
   } catch (error) {

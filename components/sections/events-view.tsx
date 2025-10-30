@@ -12,7 +12,8 @@ import { CreateEventModal } from '@/components/ui/create-event-modal'
 import { BookingModal } from '@/components/ui/booking-modal'
 
 interface Event {
-  _id: string
+  id?: string  // Firestore document ID
+  _id?: string  // Legacy MongoDB ID (for compatibility)
   title: string
   description: string
   date: string
@@ -57,12 +58,12 @@ export function EventsView() {
 
   const categories = ["All", "Board Games", "Study", "Live Music", "Art", "Workshop", "Social", "Academic", "Entertainment"]
 
-  // Convert MongoDB events to display format
+  // Convert Firestore/MongoDB events to display format
   const convertToDisplayEvents = useCallback((events: Event[]): DisplayEvent[] => {
     if (!events || !Array.isArray(events)) return []
     
     return events.map(event => ({
-      id: event._id || '',
+      id: event.id || event._id || '',  // Handle both Firestore (id) and MongoDB (_id)
       title: event.title || '',
       description: event.description || '',
       date: event.date || new Date().toISOString(),
@@ -110,11 +111,25 @@ export function EventsView() {
   }, [searchTerm, selectedCategory, apiEvents, mounted, convertToDisplayEvents])
 
   const handleBookEvent = (eventId: string) => {
-    // Find the event from apiEvents
-    const event = apiEvents?.events?.find((e: Event) => e._id === eventId || e._id?.toString() === eventId)
+    // Find the event from apiEvents (handle both Firestore id and MongoDB _id)
+    const event = apiEvents?.events?.find((e: Event) => 
+      e.id === eventId || 
+      e._id === eventId || 
+      e.id?.toString() === eventId || 
+      e._id?.toString() === eventId
+    )
+    
     if (event) {
-      setSelectedEvent(event)
+      // Ensure the event has an id field for the booking modal
+      const eventWithId = {
+        ...event,
+        _id: event.id || event._id  // Booking modal expects _id
+      }
+      setSelectedEvent(eventWithId)
       setShowBookingModal(true)
+    } else {
+      console.error('Event not found:', eventId)
+      console.log('Available events:', apiEvents?.events?.map((e: Event) => ({ id: e.id, _id: e._id })))
     }
   }
 
@@ -273,6 +288,11 @@ export function EventsView() {
           onClose={() => {
             setShowBookingModal(false)
             setSelectedEvent(null)
+          }}
+          onBookingSuccess={() => {
+            console.log('🎉 Booking successful! Refreshing events list...')
+            // Refresh the events list to show updated participant counts
+            setRefreshKey(prev => prev + 1)
           }}
         />
       )}

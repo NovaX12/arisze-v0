@@ -1,20 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDatabase } from '@/lib/mongodb'
 import { User } from '@/lib/models'
+import { firestoreDb } from '@/lib/firebase'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const email = searchParams.get('email')
     
-    const db = await getDatabase()
-    let query = {}
+    let usersSnapshot
     
     if (email) {
-      query = { email }
+      // Query by email if search parameter is present
+      usersSnapshot = await firestoreDb
+        .collection('users')
+        .where('email', '==', email)
+        .get()
+    } else {
+      // Fetch all users with a limit of 50
+      usersSnapshot = await firestoreDb
+        .collection('users')
+        .limit(50)
+        .get()
     }
     
-    const users = await db.collection('users').find(query).toArray()
+    // Map documents to clean JSON array
+    const users = usersSnapshot.docs.map((doc: any) => ({
+      id: doc.id,
+      ...doc.data()
+    }))
     
     return NextResponse.json(users)
   } catch (error) {
@@ -27,15 +40,19 @@ export async function POST(request: NextRequest) {
   try {
     const userData: Omit<User, '_id'> = await request.json()
     
-    const db = await getDatabase()
+    // Check if user already exists using Firestore query
+    const existingUserSnapshot = await firestoreDb
+      .collection('users')
+      .where('email', '==', userData.email)
+      .limit(1)
+      .get()
     
-    // Check if user already exists
-    const existingUser = await db.collection('users').findOne({ email: userData.email })
-    if (existingUser) {
+    if (!existingUserSnapshot.empty) {
       return NextResponse.json({ error: 'User already exists' }, { status: 400 })
     }
     
-    const result = await db.collection('users').insertOne({
+    // Add new user to Firestore collection
+    const docRef = await firestoreDb.collection('users').add({
       ...userData,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -43,7 +60,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       success: true, 
-      userId: result.insertedId 
+      userId: docRef.id
     })
   } catch (error) {
     console.error('Error creating user:', error)
@@ -61,22 +78,31 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
     }
     
-    const db = await getDatabase()
-    const result = await db.collection('users').updateOne(
-      { _id: userId as any },
-      { 
-        $set: {
-          ...userData,
-          updatedAt: new Date()
-        }
-      }
-    )
+    // Get document reference
+    const userDocRef = firestoreDb.collection('users').doc(userId)
     
-    if (result.matchedCount === 0) {
+    // Check if document exists
+    const userDoc = await userDocRef.get()
+    if (!userDoc.exists) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
     
-    return NextResponse.json({ success: true })
+    // Update document with userData and updatedAt timestamp
+    await userDocRef.update({
+      ...userData,
+      updatedAt: new Date()
+    })
+    
+    // Fetch updated document
+    const updatedDoc = await userDocRef.get()
+    
+    return NextResponse.json({ 
+      success: true,
+      user: {
+        id: updatedDoc.id,
+        ...updatedDoc.data()
+      }
+    })
   } catch (error) {
     console.error('Error updating user:', error)
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })

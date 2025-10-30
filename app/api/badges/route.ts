@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getDatabase } from '@/lib/mongodb'
+import { firestoreDb } from '@/lib/firebase'
 
 export async function GET() {
   try {
-    const db = await getDatabase()
-    const badges = await db.collection('badges').find({}).toArray()
+    const badgesSnapshot = await firestoreDb.collection('badges').get()
+    const badges = badgesSnapshot.docs.map(doc => ({ _id: doc.id, ...doc.data() }))
     
     return NextResponse.json({ badges })
   } catch (error) {

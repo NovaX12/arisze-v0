@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
@@ -9,24 +9,77 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ParticleBackground } from "@/components/ui/particle-background"
+import { Header } from "@/components/ui/header"
 
 export default function AIHubPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [onlineUsers, setOnlineUsers] = useState(12)
-  const [userStats, setUserStats] = useState({ 
-    chatsStarted: 0, 
-    quizzesPlayed: 0, 
-    wins: 0, 
-    totalPoints: 0, 
-    rank: "Rookie" 
-  })
+  const [onlineUsers, setOnlineUsers] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login")
     }
   }, [status, router])
+
+  // ✅ FIX: Memoize fetch function to prevent re-creation on every render
+  const fetchOnlineUsers = useCallback(async () => {
+    try {
+      // ✅ FIX: Add AbortController for 10s timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+      console.log('🔵 Fetching online users...')
+      const response = await fetch('/api/users/online', {
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+      setOnlineUsers(data.onlineCount || 1)
+      setError(null)
+      console.log('✅ Online users fetched:', data.onlineCount)
+
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error('❌ Fetch timeout after 10s')
+        setError('Connection timeout')
+      } else {
+        console.error('❌ Failed to fetch online users:', error)
+        setError('Failed to load data')
+      }
+      setOnlineUsers(1) // Fallback to current user only
+    } finally {
+      setLoading(false)
+    }
+  }, []) // ✅ Empty deps - function never changes
+
+  // ✅ FIX: Proper useEffect with cleanup
+  useEffect(() => {
+    if (status === "authenticated") {
+      // Initial fetch
+      fetchOnlineUsers()
+      
+      // Refresh every 60 seconds (reduced from 30s for better performance)
+      const interval = setInterval(fetchOnlineUsers, 60000)
+      
+      // ✅ Cleanup on unmount
+      return () => {
+        console.log('🧹 Cleaning up online users interval')
+        clearInterval(interval)
+      }
+    }
+  }, [status, fetchOnlineUsers]) // ✅ Include all dependencies
 
   // Show loading state while checking authentication
   if (status === "loading" || status === "unauthenticated") {
@@ -50,24 +103,27 @@ export default function AIHubPage() {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Constellation Background */}
-      <ParticleBackground />
+      {/* Header Navigation */}
+      <Header />
+      
+      {/* Constellation Background - No longer needed here as it's in layout */}
+      {/* <ParticleBackground /> */}
       
       {/* Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background pointer-events-none" />
 
-      <div className="relative z-10 py-20">
-        <div className="max-w-7xl mx-auto px-4">
+      <div className="relative z-10 py-10 sm:py-16 md:py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header Section */}
           <motion.header 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-16"
+            className="text-center mb-12 sm:mb-16"
           >
-            <div className="inline-flex items-center justify-center mb-6">
-              <Brain className="h-16 w-16 text-primary animate-pulse mr-4" />
-              <h1 className="text-6xl md:text-7xl font-serif font-bold gradient-text">
+            <div className="flex flex-col sm:flex-row items-center justify-center mb-6 gap-4">
+              <Brain className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 text-primary animate-pulse" />
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-serif font-bold gradient-text">
                 AI Hub
               </h1>
             </div>
@@ -75,10 +131,10 @@ export default function AIHubPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-8 leading-relaxed"
+              className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl mx-auto mb-6 sm:mb-8 leading-relaxed px-4"
             >
               Connect minds, challenge intellects, and explore AI-powered conversations.
-              <br />
+              <br className="hidden sm:block" />
               <span className="text-primary">Your neural network for learning starts here.</span>
             </motion.p>
             
@@ -86,7 +142,7 @@ export default function AIHubPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="inline-flex items-center gap-4"
+              className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4"
             >
               <div className="flex items-center bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm px-4 py-2 rounded-full border border-green-500/30">
                 <div className="h-3 w-3 bg-green-400 rounded-full mr-3 animate-pulse" />
@@ -224,7 +280,7 @@ export default function AIHubPage() {
             </motion.div>
           </main>
 
-        {/* Stats Section */}
+        {/* User Info Section - Real Data */}
         <motion.section 
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -233,53 +289,50 @@ export default function AIHubPage() {
         >
           <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-xl border-accent/20">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <CardTitle className="text-2xl font-bold gradient-text flex items-center gap-2">
-                  <Trophy className="h-6 w-6" />
-                  Your Performance
+                  <Users className="h-6 w-6" />
+                  Welcome, {session?.user?.name || 'User'}!
                 </CardTitle>
-                <Badge variant="outline" className="border-primary text-primary px-3 py-1">
-                  Rank: {userStats.rank}
+                <Badge variant="outline" className="border-green-500 text-green-500 px-3 py-1 w-fit">
+                  <div className="h-2 w-2 bg-green-500 rounded-full mr-2 animate-pulse" />
+                  Online
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <motion.div 
-                  whileHover={{ scale: 1.05 }}
-                  className="p-6 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl border border-primary/30 text-center group hover:shadow-lg hover:shadow-primary/20 transition-all duration-300"
-                >
-                  <MessageSquare className="h-8 w-8 text-primary mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                  <div className="text-3xl font-bold text-primary">{userStats.chatsStarted}</div>
-                  <div className="text-sm text-muted-foreground mt-1">Chats</div>
-                </motion.div>
+            <CardContent className="space-y-6">
+              {/* User Credentials */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-primary/10 rounded-xl border border-primary/20">
+                  <div className="text-sm text-muted-foreground mb-1">Name</div>
+                  <div className="text-lg font-semibold text-foreground">{session?.user?.name}</div>
+                </div>
+                <div className="p-4 bg-secondary/10 rounded-xl border border-secondary/20">
+                  <div className="text-sm text-muted-foreground mb-1">Email</div>
+                  <div className="text-lg font-semibold text-foreground truncate">{session?.user?.email}</div>
+                </div>
+              </div>
 
-                <motion.div 
-                  whileHover={{ scale: 1.05 }}
-                  className="p-6 bg-gradient-to-br from-secondary/20 to-secondary/10 rounded-xl border border-secondary/30 text-center group hover:shadow-lg hover:shadow-secondary/20 transition-all duration-300"
-                >
-                  <Brain className="h-8 w-8 text-secondary mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                  <div className="text-3xl font-bold text-secondary">{userStats.quizzesPlayed}</div>
-                  <div className="text-sm text-muted-foreground mt-1">Quizzes</div>
-                </motion.div>
-
-                <motion.div 
-                  whileHover={{ scale: 1.05 }}
-                  className="p-6 bg-gradient-to-br from-accent/20 to-accent/10 rounded-xl border border-accent/30 text-center group hover:shadow-lg hover:shadow-accent/20 transition-all duration-300"
-                >
-                  <Trophy className="h-8 w-8 text-accent mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                  <div className="text-3xl font-bold text-accent">{userStats.wins}</div>
-                  <div className="text-sm text-muted-foreground mt-1">Wins</div>
-                </motion.div>
-
-                <motion.div 
-                  whileHover={{ scale: 1.05 }}
-                  className="p-6 bg-gradient-to-br from-yellow-500/20 to-yellow-500/10 rounded-xl border border-yellow-500/30 text-center group hover:shadow-lg hover:shadow-yellow-500/20 transition-all duration-300"
-                >
-                  <Zap className="h-8 w-8 text-yellow-500 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                  <div className="text-3xl font-bold text-yellow-500">{userStats.totalPoints}</div>
-                  <div className="text-sm text-muted-foreground mt-1">Points</div>
-                </motion.div>
+              {/* Coming Soon Features */}
+              <div className="p-6 bg-gradient-to-r from-primary/5 to-secondary/5 rounded-xl border border-primary/10">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold text-foreground">Coming Soon</h3>
+                </div>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 bg-primary rounded-full" />
+                    Chat statistics and history
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 bg-secondary rounded-full" />
+                    Quiz performance tracking
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 bg-accent rounded-full" />
+                    Friend connections and leaderboards
+                  </li>
+                </ul>
               </div>
             </CardContent>
           </Card>

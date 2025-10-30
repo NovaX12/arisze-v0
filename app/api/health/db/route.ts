@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server"
-import { getDatabase } from "@/lib/mongodb"
+import { firestoreDb, admin } from "@/lib/firebase"
 
 export async function GET() {
   try {
-    const db = await getDatabase()
-    await db.command({ ping: 1 })
+    // Test Firestore connection by performing a simple query
+    await firestoreDb.collection('health_check').limit(1).get()
     
     return NextResponse.json({
       status: "connected",
-      database: db.databaseName,
+      database: "Firestore",
+      projectId: admin.app().options.projectId,
       timestamp: new Date().toISOString()
     })
   } catch (error: any) {

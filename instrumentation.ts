@@ -10,11 +10,11 @@ export function register() {
       console.error('Stack:', error.stack)
       console.error('Timestamp:', new Date().toISOString())
       
-      // Check if it's a MongoDB error
-      if (error.message.includes('MongoDB') || error.message.includes('ECONNREFUSED')) {
-        console.error('🔥 CRITICAL: MongoDB Connection Issue Detected!')
-        console.error('Check: 1) MONGODB_URI in .env.local')
-        console.error('Check: 2) MongoDB Atlas whitelist')
+      // Check if it's a Firebase/Database error
+      if (error.message.includes('Firebase') || error.message.includes('ECONNREFUSED')) {
+        console.error('🔥 CRITICAL: Firebase Connection Issue Detected!')
+        console.error('Check: 1) Firebase credentials in serviceAccountKey.json.json')
+        console.error('Check: 2) Firebase project permissions')
         console.error('Check: 3) Network connectivity')
       }
       console.error('---')
@@ -30,9 +30,9 @@ export function register() {
       // Check if it's a database promise rejection
       if (reason && typeof reason === 'object' && 'message' in reason) {
         const message = (reason as Error).message
-        if (message.includes('MongoDB') || message.includes('getDatabase')) {
-          console.error('🔥 CRITICAL: Database Query Failed!')
-          console.error('This usually means a route is trying to access DB without proper error handling')
+        if (message.includes('Firebase') || message.includes('Firestore')) {
+          console.error('🔥 CRITICAL: Firebase/Firestore Query Failed!')
+          console.error('This usually means a route is trying to access database without proper error handling')
         }
       }
       console.error('---')
@@ -45,7 +45,7 @@ export function register() {
     })
 
     console.log('✅ Global error handlers initialized via instrumentation.ts')
-    console.log('✅ MongoDB connection monitoring enabled')
+    console.log('✅ Firebase/Firestore connection monitoring enabled')
     console.log('✅ Session security enhanced with strong NEXTAUTH_SECRET')
   }
 }

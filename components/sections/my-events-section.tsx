@@ -71,7 +71,14 @@ export function MyEventsSection() {
   const [showParticipants, setShowParticipants] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Manual refresh function
+  const refreshData = () => {
+    console.log('🔄 Manually refreshing dashboard data...')
+    setRefreshTrigger(prev => prev + 1)
+  }
 
   useEffect(() => {
     const fetchUserEvents = async () => {
@@ -80,23 +87,44 @@ export function MyEventsSection() {
         return
       }
 
+      console.log('📊 Fetching user events...', { userId: session.user.id, refreshTrigger })
+      setLoading(true)
+
       try {
         // Fetch booked events
-        const bookingsResponse = await fetch('/api/user/bookings')
+        console.log('📥 Fetching bookings...')
+        const bookingsResponse = await fetch('/api/user/bookings', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        })
         if (bookingsResponse.ok) {
           const bookingsData = await bookingsResponse.json()
+          console.log('✅ Bookings loaded:', bookingsData.bookings?.length || 0)
           setBookings(bookingsData.bookings || [])
+        } else {
+          console.error('❌ Bookings fetch failed:', bookingsResponse.status)
         }
 
         // Fetch created events
-        const createdResponse = await fetch('/api/user/created-events')
+        console.log('📥 Fetching created events...')
+        const createdResponse = await fetch('/api/user/created-events', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        })
         if (createdResponse.ok) {
           const createdData = await createdResponse.json()
+          console.log('✅ Created events loaded:', createdData.events?.length || 0)
           setCreatedEvents(createdData.events || [])
           setLastUpdated(new Date())
+        } else {
+          console.error('❌ Created events fetch failed:', createdResponse.status)
         }
       } catch (error) {
-        console.error('Error fetching user events:', error)
+        console.error('❌ Error fetching user events:', error)
         toast.error('Failed to load events')
       } finally {
         setLoading(false)
@@ -128,7 +156,7 @@ export function MyEventsSection() {
         intervalRef.current = null
       }
     }
-  }, [session])
+  }, [session, refreshTrigger])  // Refresh when refreshTrigger changes
 
   const cancelBooking = async (booking: Booking) => {
     try {
@@ -528,8 +556,12 @@ export function MyEventsSection() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onEventCreated={() => {
-          // Refresh events list after creation
-          window.location.reload()
+          console.log('🎉 Event created! Refreshing dashboard...')
+          setShowCreateModal(false)
+          // Trigger refresh after a small delay to allow backend to process
+          setTimeout(() => {
+            refreshData()
+          }, 500)
         }}
       />
     </div>

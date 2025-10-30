@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Calendar, Clock, MapPin, Phone, Loader2, CheckCircle, Users, User } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -47,6 +48,7 @@ interface BookingModalProps {
   event: Event
   isOpen: boolean
   onClose: () => void
+  onBookingSuccess?: () => void  // Callback when booking is successful
 }
 
 const universities = [
@@ -61,7 +63,7 @@ const universities = [
   "Other"
 ]
 
-export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
+export function BookingModal({ event, isOpen, onClose, onBookingSuccess }: BookingModalProps) {
   const { data: session } = useSession()
   const router = useRouter()
   const [name, setName] = useState("")
@@ -173,6 +175,12 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
           duration: 4000,
         })
         
+        // Trigger callback immediately
+        if (onBookingSuccess) {
+          console.log('🎉 Booking successful! Triggering callback...')
+          onBookingSuccess()
+        }
+        
         // Close modal after showing success for 2 seconds
         setTimeout(() => {
           setBookingSuccess(false)
@@ -207,6 +215,9 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
       {isOpen && (
         <Dialog open={isOpen} onOpenChange={onClose}>
           <DialogContent className="max-w-4xl p-0 glassmorphism border-0 overflow-hidden">
+            <VisuallyHidden>
+              <DialogTitle>Book Event: {event.title}</DialogTitle>
+            </VisuallyHidden>
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -230,6 +241,7 @@ export function BookingModal({ event, isOpen, onClose }: BookingModalProps) {
                   src={event.image || "/placeholder.svg"}
                   alt={event.title}
                   fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
                   className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />

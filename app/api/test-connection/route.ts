@@ -1,22 +1,24 @@
 import { NextResponse } from 'next/server'
-import { getDatabase } from '@/lib/mongodb'
+import { firestoreDb, admin } from '@/lib/firebase'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    console.log('🔍 [TEST-CONNECTION] Testing MongoDB connection...')
+    console.log('🔍 [TEST-CONNECTION] Testing Firestore connection...')
     
-    const db = await getDatabase()
-    console.log('✅ [TEST-CONNECTION] Database connection obtained')
-    
-    const collections = await db.listCollections().toArray()
-    console.log('📚 [TEST-CONNECTION] Collections found:', collections.map(c => c.name))
+    // List collections
+    const collectionsSnapshot = await firestoreDb.listCollections()
+    const collections = await Promise.all(
+      collectionsSnapshot.map(async (col) => col.id)
+    )
+    console.log('📚 [TEST-CONNECTION] Collections found:', collections)
     
     // Try to count documents in events collection
     let eventsCount = 0
     try {
-      eventsCount = await db.collection('events').countDocuments()
+      const eventsSnapshot = await firestoreDb.collection('events').count().get()
+      eventsCount = eventsSnapshot.data().count
       console.log('📊 [TEST-CONNECTION] Events count:', eventsCount)
     } catch (e) {
       console.warn('⚠️ [TEST-CONNECTION] Could not count events:', e)
@@ -25,19 +27,20 @@ export async function GET() {
     return NextResponse.json({
       connected: true,
       success: true,
-      message: 'Database connection successful',
-      database: db.databaseName,
-      collections: collections.map(col => col.name),
+      message: 'Firestore connection successful',
+      database: 'Firestore',
+      projectId: admin.app().options.projectId,
+      collections,
       eventsCount,
       timestamp: new Date().toISOString()
     })
   } catch (error) {
-    console.error('❌ [TEST-CONNECTION] Database connection failed:', error)
+    console.error('❌ [TEST-CONNECTION] Firestore connection failed:', error)
     return NextResponse.json(
       { 
         connected: false,
         success: false, 
-        error: error instanceof Error ? error.message : 'Database connection failed',
+        error: error instanceof Error ? error.message : 'Firestore connection failed',
         details: error,
         timestamp: new Date().toISOString()
       },
